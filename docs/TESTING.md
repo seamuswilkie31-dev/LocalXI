@@ -2,7 +2,7 @@
 
 ## Verified (October 2026, Windows 10 22H2)
 
-- **Unit tests** (`dotnet test`, 99 tests): INI editing, password rules, client-version parsing, the
+- **Unit tests** (`dotnet test`, 100 tests): INI editing, password rules, client-version parsing, the
   component manifest, download hash checking, zip install/upgrade with preserved folders, era presets and
   data-pack ordering, the module list, the player-table list, server package detection, login-protocol replies,
   network adapter classification, Windows argument quoting, the character data layouts and server-script
@@ -17,6 +17,13 @@
   migrations 069-071 removed, covering accounts_profile, char_jobs and char_exp) is converted on the next Play
   with the character's levels, account and character intact; a failing migration stops the update with the
   backup message and isn't marked done; the real server then starts cleanly.
+- **Slow start-ups**: the launcher now waits for the map server's "ready to work" line for as long as it keeps
+  printing progress (up to 20 minutes, giving up after 3 quiet minutes); before, an 8 GB laptop still loading
+  after 4 minutes got the game started early. A real start on a fast PC is picked up within a fraction of a second
+  of the line.
+- **Game diagnostics on a real PC** (read-only): DirectPlay's state read through WMI without admin rights, the
+  game crash Windows recorded (xiloader.exe in d3d8.dll after a lost graphics device), and Ashita's log for that
+  launch, found and summarised.
 - **Server shutdown popups** ("No process is associated with this object", one per server program): reproduced
   by checking server status just after each program stopped, as the Play page does; 4 errors before the fix,
   none after.
@@ -71,6 +78,9 @@ These need the game client:
 - [ ] Windows key in game with Ashita's keyboard.windowskeyenabled = 1 (Start menu, Windows+Shift+arrows to
   move the window to another monitor)
 - [ ] Firewall rules: friends connect after **Allow friends through Windows Firewall**
+- [ ] On a PC where the game closes as soon as it starts: the message, the Ashita log on the Logs page, and the
+  server left running
+- [ ] **Turn on DirectPlay** on a PC where it's off (Windows permission prompt, then DISM)
 - [ ] Registry repair on a copied install (install folders and COM classes), then the game starts
 - [ ] Visual C++ runtime install on a clean Windows install
 

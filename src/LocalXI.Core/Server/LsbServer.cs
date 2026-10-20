@@ -33,21 +33,24 @@ public sealed class LsbServer(ServerPackage package, GameDatabase database, AppP
     public const int MapPort = 54230;
 
     /// <param name="ReadyGrace">
-    /// How long after its ports open to wait for the program's "ready to work" line before carrying on anyway
-    /// (in case a future version stops printing it).
+    /// How long the program may go quiet (no new output) with its ports open before the launcher carries on without
+    /// its "ready to work" line, in case a future version stops printing it. While it keeps printing, it's still
+    /// loading.
     /// </param>
+    /// <param name="ReadyTimeout">The longest start-up allowed, even while it keeps printing progress.</param>
     private sealed record Definition(string Name, string Description, int[] TcpPorts, int[] UdpPorts, bool Optional, TimeSpan ReadyGrace, TimeSpan ReadyTimeout);
 
     // Start order follows LandSandBoat's docker-compose: world hosts the message broker the others connect to,
-    // and the map server comes last because it depends on all of them. Loading every zone can take the map
-    // server well over a minute.
+    // and the map server comes last because it depends on all of them. Loading every zone takes the map server
+    // one or two minutes on a fast PC and over four on an 8 GB laptop, printing each step as it goes; its UDP port
+    // opens at the very start, so only the "ready to work" line says it's done.
     private static readonly Definition[] Definitions =
     [
         new("xi_world", "World", [54003], [], Optional: false, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(30)),
         new("xi_connect", "Login", [54001, 54230, 54231], [], Optional: false, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(30)),
         new("xi_search", "Search", [54002], [], Optional: false, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(30)),
         new("xi_profile", "Profile", [51220], [], Optional: true, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(30)),
-        new("xi_map", "Map", [], [MapPort], Optional: false, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(5)),
+        new("xi_map", "Map", [], [MapPort], Optional: false, TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(20)),
     ];
 
     private readonly List<ManagedProcess> _running = [];
@@ -113,7 +116,7 @@ public sealed class LsbServer(ServerPackage package, GameDatabase database, AppP
                 }
 
                 progress?.Report(definition.Name == "xi_map"
-                    ? "Loading the world (this can take a minute or two)..."
+                    ? "Loading the world (a minute or two on most PCs, several on slower ones)..."
                     : $"Starting the {definition.Description} server...");
                 SetState(definition.Name, ServerProcessState.Starting);
 
@@ -128,7 +131,7 @@ public sealed class LsbServer(ServerPackage package, GameDatabase database, AppP
                 process.Exited += OnProcessExited;
                 _running.Add(process);
 
-                await WaitUntilReadyAsync(process, definition, cancellationToken);
+                await WaitUntilReadyAsync(process, definition, progress, cancellationToken);
                 SetState(definition.Name, ServerProcessState.Running);
             }
         }
@@ -224,9 +227,10 @@ public sealed class LsbServer(ServerPackage package, GameDatabase database, AppP
         }
     }
 
-    private static async Task WaitUntilReadyAsync(ManagedProcess process, Definition definition, CancellationToken cancellationToken)
+    private static async Task WaitUntilReadyAsync(ManagedProcess process, Definition definition, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var elapsed = Stopwatch.StartNew();
+        var nextReport = TimeSpan.FromMinutes(1);
         while (elapsed.Elapsed < definition.ReadyTimeout)
         {
             if (process.HasExited)
@@ -235,17 +239,24 @@ public sealed class LsbServer(ServerPackage package, GameDatabase database, AppP
                     $"The {definition.Description} server ({definition.Name}) stopped during start-up (exit code {process.ExitCode}). The end of its log says:\n{process.Tail()}");
             }
 
-            // Ports open early, so also wait for the program's own "ready to work" line.
+            // Ports open early, so also wait for the program's own "ready to work" line, for as long as it's still
+            // printing progress; gone quiet without it, carry on rather than fail on an upstream change.
             var listening = definition.TcpPorts.All(PortProbe.IsTcpListening) && definition.UdpPorts.All(PortProbe.IsUdpBound);
-            if (listening && (process.IsReady || elapsed.Elapsed > definition.ReadyGrace))
+            if (listening && (process.IsReady || process.SinceLastOutput > definition.ReadyGrace))
             {
                 return;
+            }
+
+            if (elapsed.Elapsed > nextReport)
+            {
+                progress?.Report($"Still loading the {definition.Description.ToLowerInvariant()} server ({elapsed.Elapsed.TotalMinutes:0} min so far; slower PCs can take five or more)...");
+                nextReport += TimeSpan.FromMinutes(1);
             }
 
             await Task.Delay(250, cancellationToken);
         }
 
-        // Still alive but not ready where we expected: carry on rather than fail on an upstream change.
+        // Still alive but not ready after a very long time: carry on rather than fail on an upstream change.
     }
 
     private void OnProcessExited(ManagedProcess process)

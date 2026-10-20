@@ -17,6 +17,7 @@ public static class Elevation
     public const string RepairRegistry = "repair-registry";
     public const string AddFirewallRules = "firewall-add";
     public const string RemoveFirewallRules = "firewall-remove";
+    public const string EnableDirectPlay = "enable-directplay";
 
     /// <summary>Runs a task elevated. Returns false if the user declined the UAC prompt; throws if the task failed.</summary>
     public static async Task<bool> RunAsync(string task, params string[] arguments)
@@ -74,6 +75,9 @@ public static class Elevation
                     break;
                 case RemoveFirewallRules:
                     await FirewallRules.RemoveAsync();
+                    break;
+                case EnableDirectPlay:
+                    await WindowsFeatures.EnableDirectPlayAsync();
                     break;
                 default:
                     throw new ArgumentException($"Unknown task '{args[2]}'.");

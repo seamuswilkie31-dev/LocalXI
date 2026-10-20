@@ -16,6 +16,9 @@
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <!-- Reading Windows' optional features (DirectPlay) and the Application event log (game crashes) without admin rights. -->
+    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.12" />
+    <PackageReference Include="System.Management" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

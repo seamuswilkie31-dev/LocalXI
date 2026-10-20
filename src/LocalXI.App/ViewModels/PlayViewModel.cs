@@ -27,6 +27,9 @@ public sealed partial class PlayViewModel : PageViewModel
     [ObservableProperty]
     private bool _isGameRunning;
 
+    [ObservableProperty]
+    private bool _directPlayOff;
+
     public bool ShowServer => Launcher.Config.RunsLocalServer;
     public bool IsHost => Launcher.Config.Mode == PlayMode.Host;
     public bool IsJoin => Launcher.Config.Mode == PlayMode.Join;
@@ -80,6 +83,20 @@ public sealed partial class PlayViewModel : PageViewModel
     }
 
     [RelayCommand]
+    private async Task TurnOnDirectPlayAsync()
+    {
+        if (await Main.RunAsync(async progress =>
+            {
+                progress.Report("Turning on DirectPlay - Windows will ask for permission...");
+                await Launcher.EnableDirectPlayAsync();
+            }))
+        {
+            Main.Status = "DirectPlay is on. If the game still closes straight away, restart Windows once.";
+            await RefreshWarningsAsync();
+        }
+    }
+
+    [RelayCommand]
     private void CopyHostAddress()
     {
         Clipboard.SetText(HostAddress);
@@ -97,9 +114,15 @@ public sealed partial class PlayViewModel : PageViewModel
         try
         {
             IsGameRunning = true;
-            await Launcher.Game.WaitForGameToCloseAsync(CancellationToken.None);
+            var ran = await Launcher.Game.WaitForGameToCloseAsync(CancellationToken.None);
             IsGameRunning = false;
-            await Main.RunAsync(progress => Launcher.AfterGameClosedAsync(progress));
+            string? problem = null;
+            await Main.RunAsync(async progress => problem = await Launcher.AfterGameClosedAsync(ran, progress));
+            if (problem is not null)
+            {
+                await RefreshWarningsAsync();
+                MessageBox.Show(problem, "LocalXI", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
         finally
         {
@@ -126,6 +149,19 @@ public sealed partial class PlayViewModel : PageViewModel
     {
         var warnings = new List<string>();
         var config = Launcher.Config;
+
+        // Win32_OptionalFeature takes about a second to answer; keep it off the UI thread.
+        DirectPlayOff = await Task.Run(WindowsFeatures.IsDirectPlayEnabled) == false;
+        if (DirectPlayOff)
+        {
+            warnings.Add("DirectPlay is turned off on this PC. FINAL FANTASY XI needs it, and without it the game can close as soon as it starts. Press \"Turn on DirectPlay\" below.");
+        }
+
+        if (config.RunsLocalServer && GameDiagnostics.TotalMemoryGb < GameDiagnostics.LowMemoryGb)
+        {
+            warnings.Add($"This PC has {GameDiagnostics.TotalMemoryGb:0.#} GB of memory. The server uses about 3 GB of it, so loading the world can take several minutes " +
+                         "and the game may close if memory runs out. Close other programs before pressing Play (16 GB is recommended for hosting or playing solo).");
+        }
 
         if (Launcher.MissingComponents().Count > 0)
         {

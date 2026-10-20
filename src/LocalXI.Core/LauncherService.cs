@@ -370,11 +370,20 @@ public sealed class LauncherService : IAsyncDisposable
     }
 
     /// <summary>Called once the game window closes: back up and, unless friends are still online, shut the server down.</summary>
-    public async Task AfterGameClosedAsync(IProgress<string>? progress)
+    /// <param name="ran">How long the game ran, or null if it never appeared.</param>
+    /// <returns>A message for the player when the game closed straight after starting, otherwise null.</returns>
+    public async Task<string?> AfterGameClosedAsync(TimeSpan? ran, IProgress<string>? progress)
     {
+        if (ran is null || ran < GameDiagnostics.EarlyExit)
+        {
+            // It didn't really start. Keep the server running so the next try doesn't wait for it to load again.
+            progress?.Report("The game closed right after starting. See the Logs page.");
+            return DescribeEarlyExit(ran);
+        }
+
         if (!Config.RunsLocalServer || _server is not { IsRunning: true } server)
         {
-            return;
+            return null;
         }
 
         // The map server notices the player left after a short timeout and saves them; wait for that.
@@ -387,7 +396,7 @@ public sealed class LauncherService : IAsyncDisposable
         if (Config.Mode == PlayMode.Host && await server.OnlinePlayersAsync() is > 0)
         {
             progress?.Report("Friends are still online - the server keeps running.");
-            return;
+            return null;
         }
 
         if (Config.Server.StopWhenGameCloses)
@@ -397,6 +406,65 @@ public sealed class LauncherService : IAsyncDisposable
         else if (Config.Backups.OnGameExit)
         {
             await BackupAsync("auto", progress);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Puts what's known about a game that closed straight after starting on the Logs page (Ashita's own log for
+    /// the launch and any crash Windows recorded) and turns it into advice.
+    /// </summary>
+    private string DescribeEarlyExit(TimeSpan? ran)
+    {
+        var since = DateTime.Now - (ran ?? TimeSpan.Zero) - TimeSpan.FromMinutes(2);
+        var findings = new List<string>();
+
+        if (WindowsFeatures.IsDirectPlayEnabled() == false)
+        {
+            findings.Add("DirectPlay is turned off on this PC, and FINAL FANTASY XI needs it. Press \"Turn on DirectPlay\" on the Play page, then try again.");
+        }
+
+        foreach (var crash in GameDiagnostics.CrashesSince(since))
+        {
+            Logs.Add("launcher", $"Windows recorded a crash: {crash.Application} in {crash.Module} (exception {crash.ExceptionCode}) at {crash.Time:HH:mm:ss}, module {crash.ModulePath}");
+            findings.Add($"Windows recorded the game crashing in {crash.Module} (exception {crash.ExceptionCode}).");
+        }
+
+        if (Config.UseAshita && GameDiagnostics.AshitaLogSince(Paths.AshitaDir, since) is { } ashitaLog)
+        {
+            Logs.Add("launcher", $"Ashita's log for this launch ({ashitaLog}), warnings and last lines:");
+            foreach (var line in GameDiagnostics.SummarizeAshitaLog(File.ReadAllLines(ashitaLog)))
+            {
+                Logs.Add("ashita", line);
+            }
+        }
+
+        if (Config.RunsLocalServer && GameDiagnostics.TotalMemoryGb < GameDiagnostics.LowMemoryGb)
+        {
+            findings.Add($"This PC has {GameDiagnostics.TotalMemoryGb:0.#} GB of memory, and the server already uses about 3 GB of it. Close other programs, then try again.");
+        }
+
+        var serverNote = Config.RunsLocalServer && _server is { IsRunning: true }
+            ? "The server is still running, so the next try starts straight away."
+            : "";
+        var found = findings.Count > 0 ? string.Join("\n\n", findings.Distinct()) + "\n\n" : "";
+        return
+            "FINAL FANTASY XI closed right after it started.\n\n" + found +
+            "Other things to try:\n" +
+            "- Settings > Display > Window: choose Windowed.\n" +
+            "- Settings: untick \"Start the game through Ashita\", to see whether Ashita is the cause.\n" +
+            "- Update the graphics driver from AMD, NVIDIA or Intel.\n\n" +
+            (serverNote.Length > 0 ? serverNote + " " : "") +
+            "The Logs page now has Ashita's log for this launch; send it along if this keeps happening.";
+    }
+
+    /// <summary>Turns on DirectPlay, which the game needs; Windows asks for permission once.</summary>
+    public async Task EnableDirectPlayAsync()
+    {
+        if (!await Elevation.RunAsync(Elevation.EnableDirectPlay))
+        {
+            throw new OperationCanceledException("DirectPlay wasn't turned on: the Windows permission prompt was declined.");
         }
     }
 

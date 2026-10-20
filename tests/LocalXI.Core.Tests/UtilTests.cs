@@ -182,3 +182,27 @@ public class ElevationTests
     [InlineData("say \"hi\"", "\"say \\\"hi\\\"\"")]
     public void QuoteArgument_FollowsWindowsRules(string input, string expected) => Assert.Equal(expected, Elevation.QuoteArgument(input));
 }
+
+public class GameDiagnosticsTests
+{
+    [Fact]
+    public void SummarizeAshitaLog_KeepsProblemsAndTheEnd_SkipsRoutineWarnings()
+    {
+        string[] log =
+        [
+            "10/19/2026 16:22:21.001 | DEBUG    |    AshitaCore::Initialize | Starting initialization...",
+            "10/19/2026 16:22:21.100 | WARN     |    ConfigurationManager::Load | Configuration file has invalid section names or no data: x.ini",
+            "10/19/2026 16:22:23.200 | DEBUG    |    newIDirect3D8::CreateDevice | Creating a new graphics device..",
+            "10/19/2026 16:22:23.300 | ERROR    |    newIDirect3D8::CreateDevice | Failed to create the device.",
+            "10/19/2026 16:22:23.400 | DEBUG    |    AshitaCore::Release | Releasing.",
+        ];
+
+        var summary = GameDiagnostics.SummarizeAshitaLog(log, tail: 2);
+
+        Assert.Equal(
+        [
+            "10/19/2026 16:22:23.300 | ERROR    |    newIDirect3D8::CreateDevice | Failed to create the device.",
+            "10/19/2026 16:22:23.400 | DEBUG    |    AshitaCore::Release | Releasing.",
+        ], summary);
+    }
+}

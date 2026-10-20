@@ -92,24 +92,30 @@ public sealed class GameLauncher(AppPaths paths)
         }
     }
 
-    /// <summary>Waits for the game to appear (Ashita takes a moment) and then to close.</summary>
-    public async Task WaitForGameToCloseAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Waits for the game to appear (Ashita takes a moment) and then to close. Returns how long it ran, or null if
+    /// it never appeared (closed at the loader, or failed).
+    /// </summary>
+    public async Task<TimeSpan?> WaitForGameToCloseAsync(CancellationToken cancellationToken)
     {
         var appearDeadline = Stopwatch.StartNew();
         while (!IsGameRunning)
         {
             if (appearDeadline.Elapsed > TimeSpan.FromSeconds(60))
             {
-                return; // Never started (closed at the loader, or failed); nothing to wait for.
+                return null;
             }
 
             await Task.Delay(1000, cancellationToken);
         }
 
+        var running = Stopwatch.StartNew();
         while (IsGameRunning)
         {
-            await Task.Delay(2000, cancellationToken);
+            await Task.Delay(1000, cancellationToken);
         }
+
+        return running.Elapsed;
     }
 
     private int CountGameProcesses()

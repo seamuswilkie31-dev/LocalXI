@@ -15,6 +15,7 @@ public sealed class ManagedProcess : IDisposable
     private readonly LogSink _log;
     private volatile bool _ready;
     private volatile bool _disposed;
+    private long _lastOutputTick = Environment.TickCount64;
 
     private ManagedProcess(string name, Process process, LogSink log, string logFile)
     {
@@ -34,6 +35,9 @@ public sealed class ManagedProcess : IDisposable
 
     /// <summary>True once the program has reported that it finished starting.</summary>
     public bool IsReady => _ready;
+
+    /// <summary>How long since the program last printed anything: a loading server keeps reporting progress.</summary>
+    public TimeSpan SinceLastOutput => TimeSpan.FromMilliseconds(Environment.TickCount64 - Interlocked.Read(ref _lastOutputTick));
 
     public event Action<ManagedProcess>? Exited;
 
@@ -85,6 +89,7 @@ public sealed class ManagedProcess : IDisposable
 
     private void OnOutput(string? line)
     {
+        Interlocked.Exchange(ref _lastOutputTick, Environment.TickCount64);
         _log.Write(line);
         if (!_ready && line is not null && line.Contains(ReadyMarker, StringComparison.Ordinal))
         {
