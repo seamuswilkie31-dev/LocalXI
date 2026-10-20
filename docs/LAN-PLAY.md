@@ -3,6 +3,8 @@
 One person **hosts**: their PC runs the server and holds everyone's characters. Everyone else **joins**.
 The host's PC must be on, with the server running, for others to play.
 
+Tested with two players on two PCs over Radmin VPN, one hosting and one joining, playing together in one world.
+
 ## Pick how you'll connect
 
 | Situation | Use |

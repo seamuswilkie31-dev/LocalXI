@@ -22,6 +22,9 @@
   none after.
 - **Registry check** against a real official install: the stricter check (install folders plus COM classes)
   accepts it, so working installs aren't flagged.
+- **Multiplayer over Radmin VPN** (October 15, 2026): one PC hosting, a second PC joining from another location.
+  The joining player's account was created from Join setup, both characters were in the world at the same time
+  (the host's server logged both Radmin addresses), and both saved on logout.
 - **In game** with the October 2026 client: Ashita 4.3.2.1 and xiloader start the game, log in to the local
   server, create a character and load into the world; the character is still there after logging out.
 - **The real server, end-to-end** (package `server-1f204df5e2`, built by this repo's workflow in 71 minutes),
@@ -67,7 +70,6 @@ These need the game client:
 - [ ] Interface size in game: a smaller menu resolution (0037/0038) makes the menus bigger
 - [ ] Windows key in game with Ashita's keyboard.windowskeyenabled = 1 (Start menu, Windows+Shift+arrows to
   move the window to another monitor)
-- [ ] Host mode: a second PC on Radmin VPN creates an account from Join setup and plays
 - [ ] Firewall rules: friends connect after **Allow friends through Windows Firewall**
 - [ ] Registry repair on a copied install (install folders and COM classes), then the game starts
 - [ ] Visual C++ runtime install on a clean Windows install

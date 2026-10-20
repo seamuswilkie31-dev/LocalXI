@@ -8,8 +8,9 @@ no config files. Play solo, host a world for friends on your home network or ove
 friend's world. Your characters are saved on your PC and can be carried to another PC as a single file.
 
 > **Status: early development.** Setup, the database, the full LandSandBoat server (from this repo's
-> published package), accounts, save files, and logging in and playing are tested on one real PC. Hosting for
-> friends over a network is not tested yet. See [docs/TESTING.md](docs/TESTING.md).
+> published package), accounts, save files, and logging in and playing are tested on real PCs. **Multiplayer
+> works:** two players on two PCs have played together in one world, one hosting and one joining over Radmin VPN.
+> See [docs/TESTING.md](docs/TESTING.md).
 
 ## What you need
 
