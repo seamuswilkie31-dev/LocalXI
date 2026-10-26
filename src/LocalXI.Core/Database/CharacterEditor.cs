@@ -32,6 +32,9 @@ public sealed record StorageSizes(int Inventory, int Safe, int Locker, bool Lock
 /// </summary>
 public sealed record AbilityUnlocks(bool SubJob, bool DualWield, bool AllWeaponSkills, bool AllMaps);
 
+/// <summary>One crafting skill (fishing or a synthesis craft) as a whole level, with its guild rank (xi.craftRank).</summary>
+public sealed record CraftSkill(int SkillId, string Name, int Level, int Rank);
+
 /// <summary>A spell_list group (xi.magic.spellGroup) with how many of its player spells a character knows.</summary>
 public sealed record SpellGroupCount(int Group, string Name, int Total, int Learned);
 
@@ -458,6 +461,73 @@ public sealed class CharacterEditor(GameDatabase database)
             maps.Parameters.AddWithValue("@keyitems", KeyItemBlob.Set(keyItems, mapKeyItems, unlocks.AllMaps));
             maps.Parameters.AddWithValue("@id", charId);
             await maps.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    // ------------------------------------------------------------ crafting
+
+    /// <summary>Fishing and the eight synthesis crafts (xi.skill 48-56), in the game's menu order.</summary>
+    public static readonly IReadOnlyList<(int SkillId, string Name)> Crafts =
+    [
+        (48, "Fishing"), (49, "Woodworking"), (50, "Smithing"), (51, "Goldsmithing"), (52, "Clothcraft"),
+        (53, "Leathercraft"), (54, "Bonecraft"), (55, "Alchemy"), (56, "Cooking"),
+    ];
+
+    /// <summary>Guild ranks by xi.craftRank value.</summary>
+    public static readonly IReadOnlyList<string> CraftRanks =
+    [
+        "Amateur", "Recruit", "Initiate", "Novice", "Apprentice", "Journeyman", "Craftsman", "Artisan", "Adept", "Veteran",
+        "Expert", "Authority", "Luminary", "Master", "Grandmaster", "Legend",
+    ];
+
+    /// <summary>Highest craft level: 100 (Veteran) in the level-75 era, 110 (Expert) today.</summary>
+    public static int MaxCraftLevel(bool classic) => classic ? 100 : 110;
+
+    /// <summary>
+    /// The guild rank that goes with a level. Each rank allows ten levels (Amateur 0-10, Recruit 10-20 ...), so a
+    /// character at a rank's limit gets the next rank and can keep skilling up, as if it had passed the guild test;
+    /// at the era's top level it gets the rank that caps there.
+    /// </summary>
+    public static int CraftRankFor(int level, bool classic) => Math.Clamp(level / 10, 0, MaxCraftLevel(classic) / 10 - 1);
+
+    // char_skills.value holds tenths of a level (skill 25.3 = 253), like the !setskill command writes.
+    public async Task<IReadOnlyList<CraftSkill>> GetCraftsAsync(uint charId, CancellationToken cancellationToken = default)
+    {
+        var stored = (await database.QueryAsync(
+            $"SELECT skillid, value, `rank` FROM char_skills WHERE charid = @id AND skillid IN ({string.Join(", ", Crafts.Select(c => c.SkillId))})",
+            r => (Id: Convert.ToInt32(r.GetValue(0)), Value: Convert.ToInt32(r.GetValue(1)), Rank: Convert.ToInt32(r.GetValue(2))),
+            Id(charId), cancellationToken)).ToDictionary(s => s.Id);
+        return Crafts.Select(c => stored.TryGetValue(c.SkillId, out var s)
+                ? new CraftSkill(c.SkillId, c.Name, s.Value / 10, s.Rank)
+                : new CraftSkill(c.SkillId, c.Name, 0, 0))
+            .ToList();
+    }
+
+    /// <summary>Sets whole craft levels (any tenths are dropped) and the matching guild ranks.</summary>
+    public async Task SetCraftsAsync(uint charId, IEnumerable<(int SkillId, int Level)> levels, bool classic, CancellationToken cancellationToken = default)
+    {
+        var allowed = Crafts.Select(c => c.SkillId).ToHashSet();
+        var changes = levels.Where(l => allowed.Contains(l.SkillId)).ToList();
+        if (changes.Count == 0)
+        {
+            return;
+        }
+
+        await using var connection = await database.OpenAsync(cancellationToken: cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        foreach (var (skillId, level) in changes)
+        {
+            var clamped = Math.Clamp(level, 0, MaxCraftLevel(classic));
+            await using var write = new MySqlCommand(
+                "INSERT INTO char_skills (charid, skillid, value, `rank`) VALUES (@id, @skill, @value, @rank) " +
+                "ON DUPLICATE KEY UPDATE value = @value, `rank` = @rank", connection, transaction);
+            write.Parameters.AddWithValue("@id", charId);
+            write.Parameters.AddWithValue("@skill", skillId);
+            write.Parameters.AddWithValue("@value", clamped * 10);
+            write.Parameters.AddWithValue("@rank", CraftRankFor(clamped, classic));
+            await write.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);

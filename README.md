@@ -14,7 +14,8 @@ friend's world. Your characters are saved on your PC and can be carried to anoth
 
 ## What you need
 
-- Windows 10 or 11, 64-bit
+- Windows 10 or 11, 64-bit, or Linux / Steam Deck through Wine or Proton (experimental, see
+  [docs/LINUX.md](docs/LINUX.md))
 - Your own FINAL FANTASY XI install (see below)
 - About 2 GB of disk space for LocalXI, plus the game
 - Memory: 8 GB is enough to join a friend; **16 GB recommended to host or play solo** (the classic-era server
@@ -98,6 +99,7 @@ The **Modifiers** page edits the characters on your own world, one character at 
 |---|---|
 | Inventory | Set gil; search every item in the game and add it; remove items (not ones being worn) |
 | Jobs | Set job levels and unlock jobs (up to 75 in classic mode) |
+| Crafting | Set Fishing and every craft's skill level, with the matching guild rank (up to 100 in classic mode) |
 | Abilities | Unlock the sub job, give the character Dual Wield on every job, learn every quest, relic, mythic and empyrean weapon skill, and unlock every map |
 | Fame | Set fame level 1–9 for San d'Oria, Bastok, Windurst and Norg |
 | Quests | Set any quest to not started, accepted or completed (the quest log only; no rewards) |
@@ -115,6 +117,45 @@ offers to stop it). Everything is backed up automatically before the first chang
 Step-by-step guide, including how to undo changes and a list of handy GM commands:
 [docs/MODIFIERS.md](docs/MODIFIERS.md).
 
+## Addons and texture packs
+
+The **Addons** page picks the Ashita addons and plugins that load with your game. They change how the game looks
+and works on your PC only; the server and your friends' games aren't affected.
+
+- **Comes with Ashita:** Minimap, Minimapmon, Thirdparty, Aspect, Checker, CleanCS, Freemem, FPS, InstantChat,
+  Mapdot, Sexchange, Timestamp and TParty.
+- **Downloaded from the author's GitHub page**, at the newest version, when you tick one and press **Save
+  addons**: Nameplate, MobDB, NoLock, Statustimers, Skillchains (Chains), XICamera, XIVBar, XIUI and Zonename.
+  **Check for updates** fetches newer versions. These are other people's work, run inside your game; each has a
+  **Page** button to its source.
+
+**Texture packs** (such as AshenbubsHD or XI-View) load through [XIPivot](https://github.com/HealsCodes/XIPivot),
+which lays them over the game's files without changing them. Tick **Use texture packs**, press **Open texture
+packs folder** (`%LOCALAPPDATA%\LocalXI\Texture Packs`), put each pack in its own folder (the one holding its `ROM`
+folders), press **Refresh**, tick the packs you want and put them in order: packs higher in the list win.
+
+## Controllers
+
+**Settings → Controller → Set up my controller here** sets the game's controller up from LocalXI instead of
+FINAL FANTASY XI's own Gamepad Config tool: pick **Xbox**, **PlayStation 4**, **PlayStation 5**, **Nintendo
+Switch Pro** or **Switch 2 Pro**, and the buttons are laid out for it (confirm with the bottom button, or the right
+one for Nintendo's A). **Change buttons** moves any action to another button. Vibration, inverted camera and
+playing with the window in the background are switches on the same page. PlayStation controllers work directly or
+through Steam Input / DS4Windows; Nintendo controllers need Steam Input (or BetterJoy for the Switch 1 Pro
+Controller), which makes them act like an Xbox controller.
+
+## Seasonal events
+
+**Settings → Server → Seasonal events** runs LandSandBoat's seasonal events on their usual dates, all year, or not
+at all: the **Harvest Festival** (October 20 to November 1), the **Starlight Celebration** (December) and the
+**Egg Hunt Egg-stravaganza** (April 6 to 17). Changes apply the next time the server starts.
+
+## Linux and Steam Deck
+
+LocalXI runs in the same Wine or Proton prefix as the game (Lutris, Bottles, Steam). It notices Wine and skips the
+Windows-only steps. This is new and **not yet tested on Linux**; see [docs/LINUX.md](docs/LINUX.md) for the steps
+and what to report.
+
 ## Troubleshooting
 
 | Problem | Try |
@@ -125,6 +166,8 @@ Step-by-step guide, including how to undo changes and a list of handy GM command
 | The game closes as soon as it starts (the loader window says "Closing...") | LocalXI shows what it found and copies Ashita's log for that launch to the Logs page, and leaves the server running for another try. Check, in order: **Turn on DirectPlay** on the Play page if it's shown; Settings → Display → **Windowed**; untick **Start the game through Ashita** to see whether Ashita is the cause; update the graphics driver. If it keeps happening, send the Logs page. |
 | "Ports are already in use" | Another FFXI server or launcher is running. Close it. |
 | The Windows key does nothing in game | Settings → Display → **Let the Windows key work while the game is open** (on by default; needs Ashita). Windows+Shift+Left/Right then moves the game to another monitor. |
+| An addon misbehaves or the game crashes after adding one | Untick it on the Addons page. Heavy HD texture packs can run the 32-bit game out of memory; try fewer packs. |
+| The controller does nothing | Settings → Controller: check the controller type, and for PlayStation controllers whether **Steam Input or DS4Windows** is ticked. Untick **Set up my controller here** to go back to the game's own Gamepad Config tool. |
 | Anything else | The **Logs** page shows everything the server and database print. |
 
 ## How it works
@@ -164,7 +207,7 @@ dotnet publish src/LocalXI.App -c Release -r win-x64 --self-contained -p:Publish
 | Folder | Contents |
 |---|---|
 | `src/LocalXI.Core` | Everything that isn't UI: downloads, database, server processes, accounts, saves, networking |
-| `src/LocalXI.App` | The WPF launcher (setup wizard, Play, Saves, Network, Settings, Logs) |
+| `src/LocalXI.App` | The WPF launcher (setup wizard, Play, Saves, Modifiers, Addons, Network, Settings, Logs) |
 | `tests/LocalXI.Core.Tests` | Unit tests |
 | `components.json` | Pinned versions and SHA-256 hashes of everything the launcher downloads |
 | `.github/workflows` | Launcher CI/release, and the LandSandBoat Windows build |

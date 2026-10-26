@@ -2,13 +2,25 @@
 
 ## Verified (October 2026, Windows 10 22H2)
 
-- **Unit tests** (`dotnet test`, 100 tests): INI editing, password rules, client-version parsing, the
+- **Unit tests** (`dotnet test`, 128 tests): controller button layouts, the seasonal events module, craft ranks,
+  the addon start-up script, download layouts and XIPivot's settings, plus INI editing, password rules, client-version parsing, the
   component manifest, download hash checking, zip install/upgrade with preserved folders, era presets and
   data-pack ordering, the module list, the player-table list, server package detection, login-protocol replies,
   network adapter classification, Windows argument quoting, the character data layouts and server-script
   parsers the Modifiers page uses (including the map list and key item layout, checked against a real character), the game's COM class registrations that **Fix registry** writes (in a
   scratch per-user registry key), the boot config's window modes and interface size, and server programs
   being safe to ask about once stopped, and reading the character-data converter's report.
+- **Seasonal events in the real server** (October 2026, a throwaway world): with the Starlight Celebration and the
+  Egg Hunt set to **Always on**, the map server logged "Starting Seasonal Event" for both in October, and the
+  Harvest Festival's settings (`XI_MAIN_HALLOWEEN_2005`, `XI_MAIN_HALLOWEEN_YEAR_ROUND`) were applied, with no
+  module errors.
+- **Crafting** against the real database (throwaway world, copy of a real character): levels and guild ranks
+  written as the game stores them (Fishing 100 → value 1000, Veteran; Cooking 37 → 370, Novice; 150 capped at 100).
+- **Addons**: every downloadable addon (Nameplate, MobDB, NoLock, Statustimers, Skillchains, XICamera, XIVBar,
+  XIUI, Zonename) and XIPivot fetched from its GitHub page at the newest version and put where Ashita loads it,
+  every bundled one found, LocalXI's start-up script and `pivot.ini` written, and the boot config's script, XIPivot
+  and controller lines set. The new Addons page, Settings → Controller and Seasonal events, and the Crafting tab
+  were checked on screen.
 - **Per-character Dual Wield in the real server engine**, with LandSandBoat's own test runner (`xi_test.exe`)
   and LocalXI's module and trait rows: a level-30 warrior has no Dual Wield without the setting and Dual Wield I
   with it, loses it when the setting is cleared, and a ninja keeps its own Dual Wield II either way.
@@ -83,6 +95,11 @@ These need the game client:
 - [ ] **Turn on DirectPlay** on a PC where it's off (Windows permission prompt, then DISM)
 - [ ] Registry repair on a copied install (install folders and COM classes), then the game starts
 - [ ] Visual C++ runtime install on a clean Windows install
+- [ ] Each addon on the Addons page loading and working in game, and a real texture pack through XIPivot
+- [ ] Controllers in game: Xbox, DualShock 4 and DualSense (direct and through Steam Input), Switch and Switch 2 Pro
+  through Steam Input (the button numbers come from Ashita's documentation, not from testing each controller)
+- [ ] Seasonal event decorations and NPCs in game
+- [ ] **Linux and Steam Deck**: nothing of LocalXI has run under Wine or Proton yet (see [LINUX.md](LINUX.md))
 
 ## Manual end-to-end checklist
 

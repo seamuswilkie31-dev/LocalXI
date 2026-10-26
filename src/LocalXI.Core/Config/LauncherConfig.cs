@@ -46,6 +46,8 @@ public sealed class LauncherConfig
     public HostSettings Host { get; set; } = new();
     public JoinSettings Join { get; set; } = new();
     public GameWindowSettings Window { get; set; } = new();
+    public GamepadSettings Gamepad { get; set; } = new();
+    public AddonSettings Addons { get; set; } = new();
 
     /// <summary>
     /// Start the game through Ashita (addons, window settings). Off means xiloader starts it alone, for when a
@@ -101,6 +103,58 @@ public sealed class GameWindowSettings
     public bool WindowsKey { get; set; } = true;
 }
 
+/// <summary>A texture pack folder for XIPivot, in load order, with whether it's switched on.</summary>
+public sealed record TexturePack(string Name, bool Enabled);
+
+/// <summary>The Addons page: which addons and plugins load with the game, and XIPivot's texture packs.</summary>
+public sealed class AddonSettings
+{
+    /// <summary>Addon ids (see <c>AddonManager.Catalog</c>) to load at start-up.</summary>
+    public List<string> Enabled { get; set; } = [.. Game.AddonManager.Defaults];
+
+    public bool PivotEnabled { get; set; }
+
+    /// <summary>Texture packs in load order; the first one wins when two replace the same file.</summary>
+    public List<TexturePack> TexturePacks { get; set; } = [];
+}
+
+public enum ControllerType
+{
+    Xbox,
+    PlayStation4,
+    PlayStation5,
+    SwitchPro,
+    Switch2Pro,
+}
+
+/// <summary>Controller settings LocalXI writes for the game through Ashita (see <c>Gamepad</c>).</summary>
+public sealed class GamepadSettings
+{
+    /// <summary>
+    /// Off leaves the controller to FINAL FANTASY XI's own Gamepad Config tool, as before LocalXI had these settings.
+    /// </summary>
+    public bool Managed { get; set; }
+
+    public bool Enabled { get; set; } = true;
+    public ControllerType Type { get; set; } = ControllerType.Xbox;
+
+    /// <summary>
+    /// A PlayStation controller run through Steam Input or DS4Windows, which present it as an Xbox controller.
+    /// Nintendo controllers always go that way (Steam Input or BetterJoy): Windows has no usable driver of its own.
+    /// </summary>
+    public bool ThroughSteamInput { get; set; }
+
+    /// <summary>Confirm with the right face button (Nintendo's A, the Japanese PlayStation layout) instead of the bottom one.</summary>
+    public bool ConfirmOnRight { get; set; }
+
+    public bool Vibration { get; set; } = true;
+    public bool WorksInBackground { get; set; }
+    public bool InvertCamera { get; set; }
+
+    /// <summary>Buttons the player changed, by padsin000 slot; anything not listed uses the controller's layout.</summary>
+    public Dictionary<int, int> Buttons { get; set; } = [];
+}
+
 public sealed class ServerOptions
 {
     public GameEra Era { get; set; } = GameEra.Classic75;
@@ -118,6 +172,23 @@ public sealed class ServerOptions
 
     /// <summary>Developer option: run a LandSandBoat build from this folder instead of the downloaded package.</summary>
     public string? OverrideDirectory { get; set; }
+
+    public SeasonalEventSettings Events { get; set; } = new();
+}
+
+public enum EventMode
+{
+    /// <summary>The event runs on its real-world dates, as on retail.</summary>
+    UsualDates,
+    AlwaysOn,
+    Off,
+}
+
+public sealed class SeasonalEventSettings
+{
+    public EventMode HarvestFestival { get; set; } = EventMode.UsualDates;
+    public EventMode StarlightCelebration { get; set; } = EventMode.UsualDates;
+    public EventMode EggHunt { get; set; } = EventMode.UsualDates;
 }
 
 public sealed class BackupSettings

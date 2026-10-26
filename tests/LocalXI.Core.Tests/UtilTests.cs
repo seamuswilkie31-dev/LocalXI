@@ -130,7 +130,8 @@ public class GameLauncherTests
 
             var launcher = new GameLauncher(paths);
             launcher.WriteBootConfig("127.0.0.1", new AccountSettings { Username = "u_name", Password = "secret12" },
-                new GameWindowSettings { Width = 2560, Height = 1440, Mode = WindowMode.BorderlessWindowed, UiScale = 200 });
+                new GameWindowSettings { Width = 2560, Height = 1440, Mode = WindowMode.BorderlessWindowed, UiScale = 200 },
+                new GamepadSettings(), loadPivot: false);
 
             var ini = IniFile.Load(launcher.BootConfigPath);
             Assert.Equal(@".\\bootloader\\xiloader.exe", ini.Get("ashita.boot", "file"));
@@ -143,14 +144,25 @@ public class GameLauncherTests
             Assert.Equal("1280", ini.Get("ffxi.registry", "0037"));
             Assert.Equal("720", ini.Get("ffxi.registry", "0038"));
             Assert.Equal("1", ini.Get("ashita.input", "keyboard.windowskeyenabled"));
+            Assert.Equal(AddonManager.ScriptName, ini.Get("ashita.boot", "script"));
+            Assert.Equal("0", ini.Get("ashita.polplugins", "pivot"));
+
+            // Controller settings left to the game's own config tool.
+            Assert.Equal("-1", ini.Get("ffxi.registry", "padmode000"));
+            Assert.Equal("-1", ini.Get("ffxi.registry", "padsin000"));
 
             launcher.WriteBootConfig("127.0.0.1", new AccountSettings { Username = "u_name", Password = "secret12" },
-                new GameWindowSettings { Width = 1920, Height = 1080, Mode = WindowMode.BorderlessFullscreen, WindowsKey = false });
+                new GameWindowSettings { Width = 1920, Height = 1080, Mode = WindowMode.BorderlessFullscreen, WindowsKey = false },
+                new GamepadSettings { Managed = true, Type = ControllerType.PlayStation5, WorksInBackground = true }, loadPivot: true);
             ini = IniFile.Load(launcher.BootConfigPath);
             Assert.Equal("3", ini.Get("ffxi.registry", "0034"));
             Assert.Equal("0", ini.Get("ashita.input", "keyboard.windowskeyenabled"));
             Assert.Equal("1920", ini.Get("ffxi.registry", "0037"));
             Assert.Equal("1080", ini.Get("ffxi.registry", "0038"));
+            Assert.Equal("1", ini.Get("ashita.polplugins", "pivot"));
+            Assert.Equal("1,1,1,1,1,0", ini.Get("ffxi.registry", "padmode000"));
+            Assert.Equal("1", ini.Get("ashita.input", "gamepad.allowbackground"));
+            Assert.Equal("0", ini.Get("ashita.input", "gamepad.disableenumeration"));
         }
         finally
         {

@@ -1,0 +1,86 @@
+<UserControl x:Class="LocalXI.App.Views.AddonsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,10">
+                <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Save addons" Command="{Binding SaveCommand}" VerticalAlignment="Center" />
+                <Button DockPanel.Dock="Right" Content="Check for updates" Command="{Binding CheckForUpdatesCommand}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Text="Addons" Style="{StaticResource PageTitle}" Margin="0" />
+            </DockPanel>
+            <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,10"
+                       Text="Addons and plugins change how the game looks and works on this PC only; the server and your friends' games aren't affected. They load the next time you press Play. Ones marked with a GitHub page are made by other people and downloaded from their page at the newest version." />
+
+            <Border Background="#2A2416" BorderBrush="{StaticResource WarnBrush}" BorderThickness="1" CornerRadius="6" Padding="12,9" Margin="0,0,0,10"
+                    Visibility="{Binding AshitaOff, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock TextWrapping="Wrap" Text="Addons need the game started through Ashita. Turn it back on in Settings > Display." />
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Texture packs (XIPivot)" Style="{StaticResource SectionTitle}" />
+                    <CheckBox Content="Use texture packs" IsChecked="{Binding PivotEnabled}" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="28,2,0,10">
+                        <Run Text="XIPivot loads replacement textures and other game files (such as AshenbubsHD or XI-View) over the game's own, without changing them." />
+                        <Run Text="{Binding PivotSource, Mode=OneWay}" />
+                    </TextBlock>
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button Content="Open texture packs folder" Command="{Binding OpenTexturePacksFolderCommand}" Margin="0,0,10,6" />
+                        <Button Content="Refresh" Command="{Binding RefreshTexturePacksCommand}" Margin="0,0,10,6" />
+                        <Button Content="Move up" Command="{Binding MovePackUpCommand}" Margin="0,0,10,6" />
+                        <Button Content="Move down" Command="{Binding MovePackDownCommand}" Margin="0,0,10,6" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding TexturePacksFolder}" Style="{StaticResource Hint}" />
+                    <TextBlock Text="{Binding PackSummary}" Style="{StaticResource Hint}" TextWrapping="Wrap" />
+                    <ListBox ItemsSource="{Binding TexturePacks}" SelectedItem="{Binding SelectedPack}" MinHeight="60" MaxHeight="220"
+                             IsEnabled="{Binding PivotEnabled}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding Enabled}" Content="{Binding Name}" />
+                                    <TextBlock Text="{Binding Warning}" Style="{StaticResource Hint}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="Each pack goes in its own folder, with the pack's ROM, ROM2... folders directly inside it. Changes apply when the game starts; in game, /pivot shows what's loaded. Heavy HD packs use a lot of memory: the game is 32-bit and can run out." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Addons and plugins" Style="{StaticResource SectionTitle}" />
+                    <ItemsControl ItemsSource="{Binding Addons}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="230" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Top">
+                                        <TextBlock>
+                                            <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" />
+                                            <Run Text="{Binding Kind, Mode=OneWay}" Foreground="{StaticResource SubtleTextBrush}" FontSize="12" />
+                                        </TextBlock>
+                                    </CheckBox>
+                                    <StackPanel Grid.Column="1" Margin="8,0,8,0">
+                                        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Source}" Style="{StaticResource Hint}" Margin="0" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Page" VerticalAlignment="Top" Padding="10,3"
+                                            Command="{Binding DataContext.OpenHomepageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Info}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="Most addons have their own settings in game: type the addon's name as a command (for example /xiui, /mobdb or /camera). If the game starts misbehaving, untick the addons you added most recently. Check for updates asks each GitHub page for a newer version." />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

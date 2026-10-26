@@ -15,8 +15,10 @@ configures them from the outside, and starts and stops them in the right order.
   runtime\server\         LandSandBoat build (+ navmeshes\, ximeshes\, log\)
   runtime\ashita\         Ashita v4, with bootloader\xiloader.exe added
   runtime\python\         private Python 3.13 for converting player data (+ python-packages\, python-packaging\)
+  runtime\addons\         downloaded addons, one folder each laid out like Ashita's (copied into Ashita at launch)
   database\               MariaDB data folder: the live world
   logs\                   one log per program
+  Texture Packs\          XIPivot texture packs, one folder per pack (not in Documents: they can be gigabytes)
 
 Documents\LocalXI\
   Saves\                  exported .xisave files
@@ -177,6 +179,48 @@ folders (game, PlayOnline core, app, contents and movie source), but only those 
 already registered there, so a working install is left alone. When it re-points a class, it also drops any
 Windows Installer descriptor (the `InprocServer32` value), which COM would otherwise follow back to the old
 install.
+
+## Addons, texture packs and controllers
+
+`AddonManager` knows a fixed list of addons and plugins. Ones that ship with Ashita are only switched on or off.
+The others are fetched from their author's GitHub page at the newest version: the latest release's zip (picked by a
+name pattern when a release has several) or, for an addon kept as a folder in a repository, that folder at its
+newest commit. Downloads are unpacked into `runtime\addons\<id>\`, laid out like Ashita's folder (a zip that is
+just the addon's own folder goes under `addons\`), because an Ashita update replaces Ashita's whole folder. Before
+each launch the switched-on downloads are copied into Ashita (skipped when the copied version already matches;
+settings files already there are kept).
+
+Ashita runs a start-up script named in the boot config. LocalXI writes its own, `scripts\localxi.txt`, from
+Ashita's `default.txt`: its key binds and the plugins and addons LocalXI doesn't list stay as Ashita has them,
+and the listed ones are replaced by the player's choices (plugins first, then `/load addons`, then addons).
+
+XIPivot is a PlayOnline plugin, so it's switched on in the boot config's `[ashita.polplugins]` (`pivot = 1`).
+LocalXI writes `config\pivot\pivot.ini` each launch with `root_path` set to `%LOCALAPPDATA%\LocalXI\Texture Packs` and
+the switched-on packs as overlays `0=`, `1=` ... in the chosen order (XIPivot uses the first pack holding a file).
+
+Controller settings go in the boot config's `[ffxi.registry]`, which Ashita applies over the game's registry:
+`padmode000` (six switches: gamepad, vibration, sliders, hat switches, works in the background, XInput) and
+`padsin000` (27 slots, one per game action, each holding a button or stick-axis number). `Gamepad` builds both from
+Ashita's documented XInput and DirectInput numbering: Xbox and Nintendo controllers (through Steam Input or
+BetterJoy) as XInput, PlayStation controllers as DirectInput unless they go through Steam Input or DS4Windows.
+Left unmanaged, both are `-1` and the game keeps what its own Gamepad Config tool saved.
+
+## Seasonal events
+
+`SeasonalEvents` covers the three events LandSandBoat has built. The Harvest Festival has settings of its own
+(`HALLOWEEN_2005`, off in LandSandBoat's defaults, and `HALLOWEEN_YEAR_ROUND`), sent as `XI_MAIN_*` variables.
+The Starlight Celebration and the Egg Hunt decide from the date alone (`scripts/events`), so for those LocalXI's
+server module gets a `seasonal_events.lua` that overrides their date checks. Each registered event keeps its own
+copy of its check, so the module also swaps that copy in `xi.events.handler.checkSeasonalEvents`, which runs at
+start-up and every JST midnight.
+
+## Running under Wine
+
+`OperatingSystemInfo.IsWine` looks for Wine's `wine_get_version` export in `ntdll.dll`. Under Wine (Linux,
+Steam Deck, Proton) LocalXI skips what Wine doesn't have: the DirectPlay check (Wine has DirectPlay built in), the
+Windows event log, and Windows Firewall rules (it explains Linux firewalls instead). It loads Ashita's `winefix`
+plugin, and opens folders with `winebrowser`. Everything else, including the server and MariaDB, runs as the same
+Windows programs inside the game's Wine prefix. See [LINUX.md](LINUX.md).
 
 ## Administrator rights
 

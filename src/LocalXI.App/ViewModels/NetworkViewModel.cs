@@ -14,6 +14,14 @@ public sealed partial class NetworkViewModel(MainViewModel main) : PageViewModel
     public ObservableCollection<HostAddress> Addresses { get; } = [];
     public ObservableCollection<AccountInfo> Accounts { get; } = [];
 
+    /// <summary>Under Wine the server's programs are reached through Linux's own firewall, if one is on.</summary>
+    private const string LinuxFirewallAdvice =
+        "Under Wine, LocalXI can't change your firewall: Linux's own firewall applies instead, and most desktop Linux " +
+        "systems ship with it switched off.\n\nIf yours uses ufw (Ubuntu, Mint, Pop!_OS), run this in a terminal:\n\n" +
+        "sudo ufw allow 54001:54003/tcp\nsudo ufw allow 54230:54231/tcp\nsudo ufw allow 54230/udp\nsudo ufw allow 51220/tcp\n\n" +
+        "With firewalld (Fedora, Bazzite), open the same ports with firewall-cmd --add-port.\n\n" +
+        "Radmin VPN has no Linux version. ZeroTier and Tailscale work the same way and run on Linux and Windows.";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsHostSelected), nameof(IsJoinSelected), nameof(ModeChanged))]
     private PlayMode _mode;
@@ -123,6 +131,12 @@ public sealed partial class NetworkViewModel(MainViewModel main) : PageViewModel
     [RelayCommand]
     private async Task AllowThroughFirewallAsync()
     {
+        if (OperatingSystemInfo.IsWine)
+        {
+            MessageBox.Show(LinuxFirewallAdvice, "Firewall", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         await Main.RunAsync(async progress =>
         {
             progress.Report("Adding Windows Firewall rules (approve the Windows prompt)...");
@@ -137,6 +151,12 @@ public sealed partial class NetworkViewModel(MainViewModel main) : PageViewModel
         if (!Launcher.Config.RunsLocalServer || !Launcher.ServerPackage.LooksValid)
         {
             FirewallStatus = "";
+            return;
+        }
+
+        if (OperatingSystemInfo.IsWine)
+        {
+            FirewallStatus = "Running under Wine: Windows Firewall isn't used. If your Linux system has a firewall switched on, allow the server's ports there (press the button below for how).";
             return;
         }
 

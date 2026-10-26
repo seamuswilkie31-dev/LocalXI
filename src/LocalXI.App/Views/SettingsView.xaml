@@ -77,6 +77,56 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Controller" Style="{StaticResource SectionTitle}" />
+                    <CheckBox Content="Set up my controller here" IsChecked="{Binding GamepadManaged}" IsEnabled="{Binding UseAshita}" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="28,2,0,8"
+                               Text="Off leaves the controller to FINAL FANTASY XI's own Gamepad Config tool. On, LocalXI sets the game's controller settings each time it starts the game (through Ashita)." />
+                    <Button Content="Open the game's Gamepad Config tool" Command="{Binding OpenGamepadConfigToolCommand}" HorizontalAlignment="Left" Margin="28,0,0,8"
+                            Visibility="{Binding GamepadManaged, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                    <StackPanel Visibility="{Binding GamepadManaged, Converter={StaticResource BoolToVisibility}}" Margin="28,0,0,0">
+                        <CheckBox Content="Use a controller" IsChecked="{Binding GamepadEnabled}" Margin="0,0,0,8" />
+                        <StackPanel IsEnabled="{Binding GamepadEnabled}">
+                            <TextBlock Text="Controller" Style="{StaticResource Hint}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding Controllers}" SelectedItem="{Binding SelectedController}" DisplayMemberPath="Label" Width="340" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding ControllerHint}" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                            <CheckBox Content="It's connected through Steam Input or DS4Windows" IsChecked="{Binding ThroughSteamInput}" Margin="0,0,0,6"
+                                      Visibility="{Binding IsPlayStation, Converter={StaticResource BoolToVisibility}}" />
+                            <CheckBox Content="Confirm with the right face button, cancel with the bottom one (Nintendo and Japanese layout)" IsChecked="{Binding ConfirmOnRight}" Margin="0,0,0,6" />
+                            <CheckBox Content="Vibration" IsChecked="{Binding Vibration}" Margin="0,0,0,6" />
+                            <CheckBox Content="Invert the camera's up and down" IsChecked="{Binding InvertCamera}" Margin="0,0,0,6" />
+                            <CheckBox Content="Keep working while the game window isn't in front" IsChecked="{Binding GamepadInBackground}" Margin="0,0,0,8" />
+
+                            <Expander Header="Change buttons" Margin="0,0,0,4">
+                                <StackPanel Margin="0,8,0,0">
+                                    <ItemsControl ItemsSource="{Binding ButtonRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="340" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                                    <ComboBox Grid.Column="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected}" DisplayMemberPath="Name" Width="200" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Content="Reset to the controller's layout" Command="{Binding ResetButtonsCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                               Text="The left stick moves, the right stick turns the camera and the D-pad moves through menus and targets. The chat keyboard and macro palettes work as in the game's own controller guide." />
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Text="Takes effect the next time you press Play. If you play without a controller, untick Use a controller: that also stops a small stutter some PCs get while the game looks for one." />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource Card}" Visibility="{Binding RunsLocalServer, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel>
                     <TextBlock Text="Server" Style="{StaticResource SectionTitle}" />
@@ -95,6 +145,28 @@
                                Text="Classic always loads every zone at start-up, because many classic rules live in zone scripts." />
                     <CheckBox Content="Stop the server when I close the game (it keeps running while friends are online)" IsChecked="{Binding StopWhenGameCloses}" Margin="0,0,0,6" />
                     <CheckBox Content="Allow older game versions to log in (may cause visual glitches)" IsChecked="{Binding AllowOlderClients}" />
+
+                    <TextBlock Text="Seasonal events" Style="{StaticResource SectionTitle}" Margin="0,18,0,6" />
+                    <ItemsControl ItemsSource="{Binding EventRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="230" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Column="1" Width="190"
+                                              ItemsSource="{Binding DataContext.EventModes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                              SelectedItem="{Binding Selected}" DisplayMemberPath="Label" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Dates, StringFormat='Usually {0}'}" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Text="Always on runs an event all year: the decorations, event NPCs and their rewards appear the next time the server starts. Dates follow Japan time, as on retail. These are the seasonal events LandSandBoat has built; other holidays aren't in the server yet." />
                 </StackPanel>
             </Border>
 

@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using LocalXI.Core;
 using LocalXI.Core.Config;
 using LocalXI.Core.Server;
+using LocalXI.Core.Util;
 
 namespace LocalXI.App.ViewModels;
 
@@ -17,6 +18,7 @@ public sealed partial class MainViewModel : ObservableObject
         Play = new PlayViewModel(this);
         Saves = new SavesViewModel(this);
         Modifiers = new ModifiersViewModel(this);
+        Addons = new AddonsViewModel(this);
         Network = new NetworkViewModel(this);
         Settings = new SettingsViewModel(this);
 
@@ -32,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject
     public PlayViewModel Play { get; }
     public SavesViewModel Saves { get; }
     public ModifiersViewModel Modifiers { get; }
+    public AddonsViewModel Addons { get; }
     public NetworkViewModel Network { get; }
     public SettingsViewModel Settings { get; }
     public LogsViewModel Logs { get; }
@@ -61,6 +64,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             "Saves" => Saves,
             "Modifiers" => Modifiers,
+            "Addons" => Addons,
             "Network" => Network,
             "Settings" => Settings,
             "Logs" => Logs,
@@ -136,7 +140,10 @@ public sealed partial class MainViewModel : ObservableObject
     public static void OpenFolder(string path)
     {
         Directory.CreateDirectory(path);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true })?.Dispose();
+
+        // Under Wine, winebrowser opens the folder in the Linux desktop's own file manager.
+        var opener = OperatingSystemInfo.IsWine ? "winebrowser" : "explorer.exe";
+        Process.Start(new ProcessStartInfo(opener, $"\"{path}\"") { UseShellExecute = true })?.Dispose();
     }
 }
 

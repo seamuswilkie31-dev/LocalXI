@@ -81,6 +81,19 @@ Tick what you want and press **Save abilities**.
   every area, as if each map had been bought or found. Unticking takes all of them away, including any bought in
   game.
 
+## Crafting
+
+Each craft has a **Level** box: Fishing, Woodworking, Smithing, Goldsmithing, Clothcraft, Leathercraft, Bonecraft,
+Alchemy and Cooking. Type the levels you want (or fill every box at once with **Set every craft to** → **Fill
+in**) and press **Save crafting**.
+
+- The highest level is 100 in classic mode (Veteran) and 110 in modern mode (Expert).
+- Each craft also gets the guild rank that goes with its level, shown next to the box, as if the guild's rank
+  tests had been passed. At a rank's limit (10, 20, 30...) the character gets the next rank, so it can keep
+  skilling up straight away.
+- Above level 70 the game normally lets a character's crafts share only 40 more levels between them. Levels set
+  here aren't held to that, but any further skill-ups still follow the game's rules.
+
 ## Fame
 
 Pick a fame level from 1 to 9 for **San d'Oria**, **Bastok**, **Windurst** and **Norg**, then press **Save fame**.

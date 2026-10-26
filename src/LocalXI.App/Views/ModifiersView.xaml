@@ -151,6 +151,41 @@
                 </ScrollViewer>
             </TabItem>
 
+            <TabItem Header="Crafting">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="4,12,4,4">
+                        <TextBlock Text="{Binding CraftHint}" Style="{StaticResource Hint}" />
+                        <ItemsControl ItemsSource="{Binding CraftRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="160" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <TextBlock Text="Level" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBox Text="{Binding Level, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding RankName}" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="14,0,0,0" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock Text="Set every craft to" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Text="{Binding AllCraftsLevel, UpdateSourceTrigger=PropertyChanged}" Width="70" />
+                            <Button Content="Fill in" Command="{Binding SetAllCraftsCommand}" Margin="8,0,0,0" />
+                        </StackPanel>
+                        <Button Style="{StaticResource PrimaryButton}" Content="Save crafting" Command="{Binding SaveCraftsCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                        <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                   Text="Sets each craft's skill level and gives the guild rank that goes with it (shown next to each level), as if the guild's rank tests had been passed, so the character can keep skilling up from there. Above level 70 the game normally lets a character's crafts share only 40 more levels between them; levels set here aren't held to that, but skill-ups beyond it still follow the game's rules." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <TabItem Header="Fame">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="4,12,4,4">

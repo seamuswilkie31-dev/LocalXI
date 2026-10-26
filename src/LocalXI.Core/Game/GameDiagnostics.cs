@@ -48,6 +48,11 @@ public static class GameDiagnostics
     public static IReadOnlyList<GameCrash> CrashesSince(DateTime since)
     {
         var crashes = new List<GameCrash>();
+        if (Util.OperatingSystemInfo.IsWine)
+        {
+            return crashes; // Wine keeps no Windows event log.
+        }
+
         try
         {
             var milliseconds = Math.Max(1000, (long)(DateTime.Now - since).TotalMilliseconds);

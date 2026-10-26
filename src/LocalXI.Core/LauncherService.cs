@@ -35,6 +35,7 @@ public sealed class LauncherService : IAsyncDisposable
         Installer = new ComponentInstaller(paths, Http, Manifest.Repository);
         MariaDb = new MariaDbServer(paths, Logs);
         Game = new GameLauncher(paths);
+        Addons = new AddonManager(paths, Http);
     }
 
     public static string AppVersion => typeof(LauncherService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
@@ -47,6 +48,7 @@ public sealed class LauncherService : IAsyncDisposable
     public ComponentInstaller Installer { get; }
     public MariaDbServer MariaDb { get; }
     public GameLauncher Game { get; }
+    public AddonManager Addons { get; }
 
     public GameDatabase Database => new(Paths, Config.Database);
 
@@ -327,6 +329,7 @@ public sealed class LauncherService : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(Config.Server.OverrideDirectory))
         {
             LocalXiModule.Write(ServerDirectory);
+            SeasonalEvents.WriteModule(ServerDirectory, Config.Server.Events);
             await LocalXiModule.AddDualWieldTraitsAsync(Database, cancellationToken);
             EraPresets.WriteModuleList(ServerDirectory);
             if (!ServerSettingsFiles.ApplyExpRate(ServerDirectory, Config.Server.ExpRate))
@@ -335,7 +338,12 @@ public sealed class LauncherService : IAsyncDisposable
             }
         }
 
-        var era = EraPresets.Settings(Config.Server.Era);
+        var era = new Dictionary<string, string>(EraPresets.Settings(Config.Server.Era));
+        foreach (var (key, value) in SeasonalEvents.Settings(Config.Server.Events))
+        {
+            era[key] = value;
+        }
+
         var lazy = Config.Server.LazyZones && EraPresets.AllowsLazyZones(Config.Server.Era);
         var options = Config.Mode == PlayMode.Host
             ? new ServerStartOptions(CheckHostAddress(), LocalOnly: false, lazy, Config.Server.AllowOlderClients, era)
@@ -360,13 +368,42 @@ public sealed class LauncherService : IAsyncDisposable
             await StartServerAsync(progress, cancellationToken);
         }
 
-        progress?.Report("Launching the game - Windows will ask for permission...");
         if (Config.UseAshita)
         {
-            Game.WriteBootConfig(GameServerAddress, Config.Account, Config.Window);
+            await InstallMissingAddonsAsync(progress, cancellationToken);
+            var pivot = Addons.PrepareForLaunch(Config.Addons, message => Logs.Add("launcher", message));
+            Game.WriteBootConfig(GameServerAddress, Config.Account, Config.Window, Config.Gamepad, pivot);
         }
 
+        progress?.Report(OperatingSystemInfo.IsWine ? "Launching the game..." : "Launching the game - Windows will ask for permission...");
+
         Game.Launch(Config.UseAshita, GameServerAddress, Config.Account);
+    }
+
+    /// <summary>
+    /// Downloads switched-on addons that aren't on this PC yet (a new PC, or a config copied over). A download that
+    /// fails doesn't stop the game: it starts without that addon and the Logs page says why.
+    /// </summary>
+    private async Task InstallMissingAddonsAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        var wanted = Config.Addons.Enabled.Select(AddonManager.Find).OfType<AddonInfo>().ToList();
+        if (Config.Addons.PivotEnabled)
+        {
+            wanted.Add(AddonManager.Pivot);
+        }
+
+        foreach (var addon in wanted.Where(a => a.Origin != AddonOrigin.Bundled && !Addons.IsAvailable(a)))
+        {
+            try
+            {
+                await Addons.InstallAsync(addon, progress, cancellationToken);
+            }
+            catch (Exception e) when (e is HttpRequestException or IOException or InvalidDataException or TaskCanceledException
+                                           or System.Text.Json.JsonException or UnauthorizedAccessException)
+            {
+                Logs.Add("launcher", $"{addon.Name} couldn't be downloaded, so the game starts without it: {e.Message}");
+            }
+        }
     }
 
     /// <summary>Called once the game window closes: back up and, unless friends are still online, shut the server down.</summary>

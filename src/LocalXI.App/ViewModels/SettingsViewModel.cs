@@ -7,14 +7,103 @@ using LocalXI.Core;
 using LocalXI.Core.Config;
 using LocalXI.Core.Database;
 using LocalXI.Core.Game;
+using LocalXI.Core.Server;
 using LocalXI.Core.Util;
 using Microsoft.Win32;
 
 namespace LocalXI.App.ViewModels;
 
+public sealed record EventModeOption(EventMode Mode, string Label);
+
+public sealed partial class EventRow(SeasonalEvents.EventInfo info) : ObservableObject
+{
+    public SeasonalEvents.EventInfo Info { get; } = info;
+    public string Name => Info.Name;
+    public string Dates => Info.Dates;
+
+    [ObservableProperty]
+    private EventModeOption? _selected;
+}
+
+public sealed record ControllerOption(ControllerType Type, string Label);
+
+public sealed partial class GamepadButtonRow(GamepadAction action) : ObservableObject
+{
+    public GamepadAction Action { get; } = action;
+    public string Name => Action.Name;
+    public ObservableCollection<GamepadButton> Choices { get; } = [];
+
+    [ObservableProperty]
+    private GamepadButton? _selected;
+}
+
 public sealed partial class SettingsViewModel(MainViewModel main) : PageViewModel(main)
 {
     public ObservableCollection<InstallCheck> GameChecks { get; } = [];
+
+    public ObservableCollection<EventRow> EventRows { get; } = [];
+
+    public IReadOnlyList<ControllerOption> Controllers { get; } =
+    [
+        new(ControllerType.Xbox, "Xbox, or any XInput controller"),
+        new(ControllerType.PlayStation4, "PlayStation 4 (DualShock 4)"),
+        new(ControllerType.PlayStation5, "PlayStation 5 (DualSense)"),
+        new(ControllerType.SwitchPro, "Nintendo Switch Pro Controller"),
+        new(ControllerType.Switch2Pro, "Nintendo Switch 2 Pro Controller"),
+    ];
+
+    public ObservableCollection<GamepadButtonRow> ButtonRows { get; } = [];
+
+    private bool _loadingGamepad;
+
+    [ObservableProperty]
+    private bool _gamepadManaged;
+
+    [ObservableProperty]
+    private bool _gamepadEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPlayStation), nameof(IsNintendo), nameof(ControllerHint))]
+    private ControllerOption? _selectedController;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ControllerHint))]
+    private bool _throughSteamInput;
+
+    [ObservableProperty]
+    private bool _confirmOnRight;
+
+    [ObservableProperty]
+    private bool _vibration;
+
+    [ObservableProperty]
+    private bool _gamepadInBackground;
+
+    [ObservableProperty]
+    private bool _invertCamera;
+
+    public bool IsPlayStation => SelectedController?.Type is ControllerType.PlayStation4 or ControllerType.PlayStation5;
+    public bool IsNintendo => SelectedController?.Type is ControllerType.SwitchPro or ControllerType.Switch2Pro;
+
+    public string ControllerHint => SelectedController?.Type switch
+    {
+        ControllerType.SwitchPro =>
+            "Windows has no proper driver for the Switch Pro Controller. Connect it through Steam (add LocalXI as a non-Steam game with Steam Input on) or BetterJoy; both make it act like an Xbox controller, and LocalXI names the buttons as printed on yours.",
+        ControllerType.Switch2Pro =>
+            "The Switch 2 Pro Controller works on PCs through Steam: add LocalXI as a non-Steam game with Steam Input on, so it acts like an Xbox controller. LocalXI names the buttons as printed on yours.",
+        ControllerType.PlayStation4 or ControllerType.PlayStation5 when ThroughSteamInput =>
+            "Steam Input or DS4Windows makes the controller act like an Xbox controller; LocalXI still names the buttons as printed on yours.",
+        ControllerType.PlayStation4 or ControllerType.PlayStation5 =>
+            "Plug it in or pair it over Bluetooth and the game reads it directly. If you use Steam Input or DS4Windows with it, tick the box below.",
+        _ => "Xbox controllers, and most other PC controllers, work straight away.",
+    };
+
+    public IReadOnlyList<EventModeOption> EventModes { get; } =
+    [
+        new(EventMode.UsualDates, "On its usual dates"),
+        new(EventMode.AlwaysOn, "Always on"),
+        new(EventMode.Off, "Off"),
+    ];
 
     public IReadOnlyList<WindowMode> WindowModes { get; } = Enum.GetValues<WindowMode>();
 
@@ -109,6 +198,26 @@ public sealed partial class SettingsViewModel(MainViewModel main) : PageViewMode
         BackupOnGameExit = config.Backups.OnGameExit;
         BackupsToKeep = config.Backups.Keep;
         OverrideDirectory = config.Server.OverrideDirectory ?? "";
+        var gamepad = config.Gamepad;
+        _loadingGamepad = true;
+        GamepadManaged = gamepad.Managed;
+        GamepadEnabled = gamepad.Enabled;
+        SelectedController = Controllers.First(c => c.Type == gamepad.Type);
+        ThroughSteamInput = gamepad.ThroughSteamInput;
+        ConfirmOnRight = gamepad.ConfirmOnRight;
+        Vibration = gamepad.Vibration;
+        GamepadInBackground = gamepad.WorksInBackground;
+        InvertCamera = gamepad.InvertCamera;
+        _loadingGamepad = false;
+        BuildButtonRows(gamepad.Buttons);
+
+        EventRows.Clear();
+        foreach (var info in SeasonalEvents.Events)
+        {
+            var mode = info.Get(config.Server.Events);
+            EventRows.Add(new EventRow(info) { Selected = EventModes.First(o => o.Mode == mode) });
+        }
+
         OnPropertyChanged(nameof(Username));
         OnPropertyChanged(nameof(RunsLocalServer));
         CheckGame();
@@ -188,6 +297,12 @@ public sealed partial class SettingsViewModel(MainViewModel main) : PageViewMode
         config.Server.LazyZones = LazyZones;
         config.Server.AllowOlderClients = AllowOlderClients;
         config.Server.StopWhenGameCloses = StopWhenGameCloses;
+        config.Gamepad = CurrentGamepad(includeButtons: true);
+        foreach (var row in EventRows)
+        {
+            row.Info.Set(config.Server.Events, row.Selected?.Mode ?? EventMode.UsualDates);
+        }
+
         config.Backups.OnGameExit = BackupOnGameExit;
         config.Backups.Keep = Math.Clamp(BackupsToKeep, 1, 100);
 
@@ -210,6 +325,99 @@ public sealed partial class SettingsViewModel(MainViewModel main) : PageViewMode
         };
         Main.RefreshModeSummary();
         OnShown();
+    }
+
+    partial void OnSelectedControllerChanged(ControllerOption? value)
+    {
+        if (!_loadingGamepad && value is not null)
+        {
+            // Nintendo's A, the button that confirms, is on the right; PlayStation and Xbox confirm with the bottom one.
+            _loadingGamepad = true;
+            ConfirmOnRight = IsNintendo;
+            _loadingGamepad = false;
+            BuildButtonRows(new Dictionary<int, int>());
+        }
+    }
+
+    partial void OnThroughSteamInputChanged(bool value) => RebuildButtonRows();
+
+    partial void OnConfirmOnRightChanged(bool value) => RebuildButtonRows();
+
+    private void RebuildButtonRows()
+    {
+        if (!_loadingGamepad)
+        {
+            BuildButtonRows(new Dictionary<int, int>());
+        }
+    }
+
+    /// <summary>The controller settings as chosen on the page.</summary>
+    private GamepadSettings CurrentGamepad(bool includeButtons)
+    {
+        var settings = new GamepadSettings
+        {
+            Managed = GamepadManaged,
+            Enabled = GamepadEnabled,
+            Type = SelectedController?.Type ?? ControllerType.Xbox,
+            ThroughSteamInput = ThroughSteamInput,
+            ConfirmOnRight = ConfirmOnRight,
+            Vibration = Vibration,
+            WorksInBackground = GamepadInBackground,
+            InvertCamera = InvertCamera,
+        };
+
+        if (includeButtons)
+        {
+            // Only buttons that differ from the controller's own layout are kept.
+            var defaults = Gamepad.DefaultButtons(settings);
+            foreach (var row in ButtonRows.Where(r => r.Selected is not null && defaults.GetValueOrDefault(r.Action.Slot, Gamepad.None) != r.Selected.Id))
+            {
+                settings.Buttons[row.Action.Slot] = row.Selected!.Id;
+            }
+        }
+
+        return settings;
+    }
+
+    /// <summary>One row per action, with the chosen controller's buttons to pick from.</summary>
+    private void BuildButtonRows(IReadOnlyDictionary<int, int> changed)
+    {
+        var settings = CurrentGamepad(includeButtons: false);
+        var buttons = Gamepad.Buttons(settings);
+        var defaults = Gamepad.DefaultButtons(settings);
+        ButtonRows.Clear();
+        foreach (var action in Gamepad.ButtonActions)
+        {
+            var row = new GamepadButtonRow(action);
+            foreach (var button in buttons)
+            {
+                row.Choices.Add(button);
+            }
+
+            var id = changed.TryGetValue(action.Slot, out var mine) ? mine : defaults.GetValueOrDefault(action.Slot, Gamepad.None);
+            row.Selected = row.Choices.FirstOrDefault(b => b.Id == id) ?? row.Choices.Last();
+            ButtonRows.Add(row);
+        }
+    }
+
+    [RelayCommand]
+    private void ResetButtons() => BuildButtonRows(new Dictionary<int, int>());
+
+    /// <summary>FINAL FANTASY XI's own controller tool, for players who'd rather set the controller up there.</summary>
+    [RelayCommand]
+    private void OpenGamepadConfigTool()
+    {
+        var tool = new[] { "ToolsUS", "ToolsEU", "ToolsJP", "Tools" }
+            .Select(folder => Path.Combine(FfxiPath, folder, "FFXiPadConfig.exe"))
+            .FirstOrDefault(File.Exists);
+        if (tool is null)
+        {
+            MessageBox.Show(@"FINAL FANTASY XI's Gamepad Config tool (ToolsUS\FFXiPadConfig.exe) wasn't found in the game folder.",
+                "Controller", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tool) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(tool)! })?.Dispose();
     }
 
     [RelayCommand]

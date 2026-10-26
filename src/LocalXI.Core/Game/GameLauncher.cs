@@ -17,7 +17,8 @@ public sealed class GameLauncher(AppPaths paths)
 
     public bool IsGameRunning => CountGameProcesses() > 0;
 
-    public void WriteBootConfig(string serverAddress, AccountSettings account, GameWindowSettings window)
+    /// <param name="loadPivot">Load XIPivot, the PlayOnline plugin behind texture packs (see <see cref="AddonManager"/>).</param>
+    public void WriteBootConfig(string serverAddress, AccountSettings account, GameWindowSettings window, GamepadSettings gamepad, bool loadPivot)
     {
         var bootDir = Path.GetDirectoryName(BootConfigPath)!;
         Directory.CreateDirectory(bootDir);
@@ -32,9 +33,11 @@ public sealed class GameLauncher(AppPaths paths)
         ini.Set("ashita.boot", "file", @".\\bootloader\\xiloader.exe");
         ini.Set("ashita.boot", "command", XiloaderCommand(serverAddress, account));
         ini.Set("ashita.boot", "gamemodule", "ffximain.dll");
-        ini.Set("ashita.boot", "script", "default.txt");
+        ini.Set("ashita.boot", "script", AddonManager.ScriptName);
         ini.Set("ashita.boot", "args", "");
         ini.Set("ashita.input", "keyboard.windowskeyenabled", window.WindowsKey ? "1" : "0");
+        ini.Set("ashita.polplugins", "pivot", loadPivot ? "1" : "0");
+        WriteGamepad(ini, gamepad);
 
         // Game settings normally written by FINAL FANTASY XI's config tool; Ashita applies them at launch.
         ini.Set("ffxi.registry", "0001", window.Width.ToString());
@@ -47,6 +50,21 @@ public sealed class GameLauncher(AppPaths paths)
         ini.Set("ffxi.registry", "0042", paths.ScreenshotsDir);
 
         ini.Save(BootConfigPath);
+    }
+
+    /// <summary>
+    /// Controller settings. Unmanaged leaves the game's own (from its Gamepad Config tool, kept in the registry): -1
+    /// tells Ashita not to override them.
+    /// </summary>
+    internal static void WriteGamepad(IniFile ini, GamepadSettings gamepad)
+    {
+        var managed = gamepad.Managed;
+        ini.Set("ffxi.registry", "padmode000", managed ? Gamepad.PadMode(gamepad) : "-1");
+        ini.Set("ffxi.registry", "padsin000", managed ? Gamepad.PadButtons(gamepad) : "-1");
+        ini.Set("ashita.input", "gamepad.allowbackground", managed && gamepad.Enabled && gamepad.WorksInBackground ? "1" : "0");
+
+        // With no controller in use, skipping controller detection avoids a known micro-stutter (Ashita docs).
+        ini.Set("ashita.input", "gamepad.disableenumeration", managed && !gamepad.Enabled ? "1" : "0");
     }
 
     internal static string XiloaderCommand(string serverAddress, AccountSettings account) =>

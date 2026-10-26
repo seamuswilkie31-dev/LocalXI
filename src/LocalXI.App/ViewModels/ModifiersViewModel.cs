@@ -44,6 +44,20 @@ public sealed partial class QuestRow(QuestInfo quest, QuestState original) : Obs
     private QuestState _state = original;
 }
 
+public sealed partial class CraftRow(int skillId, string name, bool classic) : ObservableObject
+{
+    public int SkillId { get; } = skillId;
+    public string Name { get; } = name;
+
+    public string RankName => int.TryParse(Level, out var level) && level >= 0
+        ? CharacterEditor.CraftRanks[CharacterEditor.CraftRankFor(Math.Min(level, CharacterEditor.MaxCraftLevel(classic)), classic)]
+        : "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RankName))]
+    private string _level = "0";
+}
+
 public sealed partial class SpellGroupRow(SpellGroupCount count) : ObservableObject
 {
     public int Group { get; } = count.Group;
@@ -71,6 +85,7 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     public ObservableCollection<FameRow> FameRows { get; } = [];
     public ObservableCollection<QuestRow> Quests { get; } = [];
     public ObservableCollection<SpellGroupRow> SpellRows { get; } = [];
+    public ObservableCollection<CraftRow> CraftRows { get; } = [];
 
     public IReadOnlyList<double> ExpRates => ServerSettingsFiles.ExpRates;
     public IReadOnlyList<int> FameLevels { get; } = Enumerable.Range(1, 9).ToList();
@@ -92,6 +107,14 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     public bool IsClassic => Launcher.Config.Server.Era == GameEra.Classic75;
     public int MaxLevel => IsClassic ? 75 : 99;
     public string LevelHint => IsClassic ? "Levels 1-75 (classic era). Geomancer and Rune Fencer belong to modern mode." : "Levels 1-99.";
+    public int MaxCraftLevel => CharacterEditor.MaxCraftLevel(IsClassic);
+
+    public string CraftHint => IsClassic
+        ? "Levels 0-100 (classic era, up to Veteran)."
+        : "Levels 0-110 (up to Expert).";
+
+    [ObservableProperty]
+    private string _allCraftsLevel = "100";
 
     [ObservableProperty]
     private CharacterSummary? _selectedCharacter;
@@ -175,6 +198,8 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
         OnPropertyChanged(nameof(IsClassic));
         OnPropertyChanged(nameof(MaxLevel));
         OnPropertyChanged(nameof(LevelHint));
+        OnPropertyChanged(nameof(MaxCraftLevel));
+        OnPropertyChanged(nameof(CraftHint));
         ExpRate = Launcher.Config.Server.ExpRate;
         ServerRunning = Launcher.Config.RunsLocalServer && Launcher.Server.IsRunning;
         _ = LoadCharactersAsync();
@@ -258,6 +283,12 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
             var abilities = await editor.GetAbilityUnlocksAsync(character.Id, catalog.MapKeyItems);
             (SubJobUnlocked, DualWield, AllWeaponSkills, AllMaps) = (abilities.SubJob, abilities.DualWield, abilities.AllWeaponSkills, abilities.AllMaps);
             OnPropertyChanged(nameof(MapsHint));
+
+            CraftRows.Clear();
+            foreach (var craft in await editor.GetCraftsAsync(character.Id))
+            {
+                CraftRows.Add(new CraftRow(craft.SkillId, craft.Name, IsClassic) { Level = craft.Level.ToString(CultureInfo.InvariantCulture) });
+            }
 
             var storage = await editor.GetStorageAsync(character.Id);
             StorageSummary = string.Join("\n",
@@ -464,6 +495,33 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     private Task SaveAbilitiesAsync() =>
         EditAsync("Abilities saved.", (editor, id) =>
             editor.SetAbilityUnlocksAsync(id, new AbilityUnlocks(SubJobUnlocked, DualWield, AllWeaponSkills, AllMaps), Launcher.Catalog.MapKeyItems));
+
+    [RelayCommand]
+    private void SetAllCrafts()
+    {
+        foreach (var row in CraftRows)
+        {
+            row.Level = AllCraftsLevel;
+        }
+    }
+
+    [RelayCommand]
+    private Task SaveCraftsAsync()
+    {
+        var levels = new List<(int SkillId, int Level)>();
+        foreach (var row in CraftRows)
+        {
+            if (!int.TryParse(row.Level, NumberStyles.None, CultureInfo.InvariantCulture, out var level) || level > MaxCraftLevel)
+            {
+                MessageBox.Show($"{row.Name}: enter a level from 0 to {MaxCraftLevel}.", "Crafting", MessageBoxButton.OK, MessageBoxImage.Information);
+                return Task.CompletedTask;
+            }
+
+            levels.Add((row.SkillId, level));
+        }
+
+        return EditAsync("Crafting skills saved.", (editor, id) => editor.SetCraftsAsync(id, levels, IsClassic));
+    }
 
     [RelayCommand]
     private Task UnlockStorageAsync() =>

@@ -21,6 +21,12 @@ public static class WindowsFeatures
     /// </summary>
     public static bool? IsDirectPlayEnabled()
     {
+        // Wine has DirectPlay built in, and no Windows optional features to ask.
+        if (OperatingSystemInfo.IsWine)
+        {
+            return null;
+        }
+
         try
         {
             using var searcher = new ManagementObjectSearcher("SELECT InstallState FROM Win32_OptionalFeature WHERE Name = 'DirectPlay'");
