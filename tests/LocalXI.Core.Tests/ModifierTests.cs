@@ -1,3 +1,4 @@
+using LocalXI.Core.Config;
 using LocalXI.Core.Database;
 using LocalXI.Core.Server;
 
@@ -194,6 +195,106 @@ public class ServerSettingsFilesTests : IDisposable
         Assert.False(ServerSettingsFiles.ApplyExpRate(_root, 2.0));
         Assert.Equal("-- my own settings\n", File.ReadAllText(MapLua));
     }
+
+    // The shape of LandSandBoat's own settings/default/main.lua around the lines LocalXI changes.
+    private void WriteMainDefaults()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "settings", "default"));
+        File.WriteAllText(Path.Combine(_root, "settings", "default", "main.lua"),
+            "xi.settings.main =\n{\n    -- Server name (not longer than 15 characters)\n    SERVER_NAME = 'Nameless',\n\n" +
+            "    SERVER_MESSAGE =\n        'Please visit https://github.com/LandSandBoat/server for the latest information on the project.\\n' ..\n" +
+            "        'Thank you, and we hope you enjoy sailing the sands!',\n\n    RESTRICT_CONTENT = 0,\n" +
+            "    WEAPON_SKILL_POWER  = 1.000, -- Multiplies damage dealt by Weapon Skills.\n}\n");
+    }
+
+    private string MainLua => Path.Combine(_root, "settings", "main.lua");
+
+    [Fact]
+    public void ServerNameMessageAndWeaponSkillDamage_GoInMainLua()
+    {
+        WriteMainDefaults();
+        WriteDefaults();
+        var problems = ServerSettingsFiles.Apply(_root, new ServerOptions
+        {
+            ServerName = "River's World",
+            WelcomeMessage = "Welcome home!\nBe nice, it's 'our' world.",
+            WeaponSkillPower = 1.5,
+        });
+
+        Assert.Empty(problems);
+        var text = File.ReadAllText(MainLua);
+        Assert.Contains(@"SERVER_NAME = 'River\'s World',", text);
+        Assert.Contains(@"SERVER_MESSAGE = 'Welcome home!\nBe nice, it\'s \'our\' world.',", text);
+        Assert.DoesNotContain("sailing the sands", text);
+        Assert.Contains("RESTRICT_CONTENT = 0,", text);
+        Assert.Contains("WEAPON_SKILL_POWER  = 1.5, -- Multiplies", text);
+        Assert.False(File.Exists(MapLua)); // EXP rate 1x: no map.lua
+    }
+
+    [Fact]
+    public void Defaults_RemoveMainLuaAgain()
+    {
+        WriteMainDefaults();
+        WriteDefaults();
+        ServerSettingsFiles.Apply(_root, new ServerOptions { ServerName = "Home" });
+        Assert.True(File.Exists(MainLua));
+        Assert.Empty(ServerSettingsFiles.Apply(_root, new ServerOptions()));
+        Assert.False(File.Exists(MainLua));
+    }
+
+    [Theory]
+    [InlineData("  My Home Server  ", "My Home Server")]
+    [InlineData("A name far too long to fit", "A name far too ")]
+    [InlineData("Café ☕ World", "Caf  World")]
+    [InlineData("   ", null)]
+    public void ServerNames_AreCleaned(string name, string? expected) => Assert.Equal(expected?.Trim(), ServerSettingsFiles.CleanServerName(name));
+}
+
+public class ServerTuningTests
+{
+    [Fact]
+    public void NormalSettings_SendNothing() => Assert.Empty(ServerTuning.Settings(new ServerOptions()));
+
+    [Fact]
+    public void Speed_RaisesBaseSpeedAndItsLimit()
+    {
+        var settings = ServerTuning.Settings(new ServerOptions { SpeedPercent = 150 });
+        Assert.Equal("75", settings["XI_MAP_BASE_SPEED"]);
+        Assert.Equal("120", settings["XI_MAP_SPEED_LIMIT"]);
+    }
+
+    [Fact]
+    public void Speed_StopsAtThreeTimesNormal() =>
+        Assert.Equal("150", ServerTuning.Settings(new ServerOptions { SpeedPercent = 1000 })["XI_MAP_BASE_SPEED"]);
+
+    [Fact]
+    public void SubJobAtMainJobLevel_IsRatio3() =>
+        Assert.Equal("3", ServerTuning.Settings(new ServerOptions { SubJobRatio = 3 })["XI_MAP_SUBJOB_RATIO"]);
+}
+
+public class MountKeyItemTests
+{
+    [Fact]
+    public void Mounts_AreTheCompanionBlockIncludingWhistles()
+    {
+        const string lua = """
+            xi.keyItem =
+            {
+                CHOCOBO_LICENSE                         = 138,
+                GRUNT_HEARD_ROUND_THE_WORLD             = 3070,
+                CHOCOBO_COMPANION                       = 3072,
+                RAPTOR_COMPANION                        = 3073,
+                FENRIR_WHISTLE                          = 3081,
+                CRAKLAW_COMPANION                       = 3108,
+                BUBBLE_CRAB_COMPANION                   = 3110,
+                SHEET_OF_SHADOW_LORD_TUNES              = 3136,
+            }
+            """;
+        Assert.Equal([3072, 3073, 3081, 3108, 3110], GameCatalog.ParseMountKeyItems(lua));
+    }
+
+    [Fact]
+    public void NoCompanions_NoMounts() => Assert.Empty(GameCatalog.ParseMountKeyItems("MAP_OF_X = 1,"));
 }
 
 public class WeaponSkillBitsTests

@@ -145,6 +145,29 @@
                                Text="Classic always loads every zone at start-up, because many classic rules live in zone scripts." />
                     <CheckBox Content="Stop the server when I close the game (it keeps running while friends are online)" IsChecked="{Binding StopWhenGameCloses}" Margin="0,0,0,6" />
                     <CheckBox Content="Allow older game versions to log in (may cause visual glitches)" IsChecked="{Binding AllowOlderClients}" />
+                    <CheckBox Content="Low memory mode: load zones only when someone enters them" IsChecked="{Binding LowMemory}" Margin="0,10,0,2" />
+                    <TextBlock Style="{StaticResource Hint}" Margin="28,0,0,0" TextWrapping="Wrap"
+                               Text="For PCs with 8 GB of memory or less. The world server then starts at about 120 MB instead of nearly 3 GB, growing a little as players visit zones. The catch, in classic mode: the old-style rules kept in zone scripts (some notorious monster timers, shop stock and fame checks) don't apply, because those zones aren't loaded when the rules are. Modern worlds already load zones this way." />
+
+                    <TextBlock Text="Your world" Style="{StaticResource SectionTitle}" Margin="0,18,0,6" />
+                    <WrapPanel>
+                        <StackPanel Margin="0,0,16,8">
+                            <TextBlock Text="Server name (up to 15 letters)" Style="{StaticResource Hint}" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding ServerName, UpdateSourceTrigger=PropertyChanged}" MaxLength="{Binding MaxServerNameLength}" Width="220" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,8">
+                            <TextBlock Text="Movement speed" Style="{StaticResource Hint}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding Speeds}" SelectedItem="{Binding SelectedSpeed}" DisplayMemberPath="Label" Width="170" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,8">
+                            <TextBlock Text="Sub job level" Style="{StaticResource Hint}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding SubJobRatios}" SelectedItem="{Binding SelectedSubJobRatio}" DisplayMemberPath="Label" Width="330" />
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Text="Welcome message (shown in chat after logging in)" Style="{StaticResource Hint}" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding WelcomeMessage, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" MaxLength="400" />
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Text="Leave the name or message empty for LandSandBoat's own. Movement speed applies to every player (speed gear and Flee still add to it). Sub job level sets how high a support job can reach against the main job, for every player. All of these apply the next time the server starts." />
 
                     <TextBlock Text="Seasonal events" Style="{StaticResource SectionTitle}" Margin="0,18,0,6" />
                     <ItemsControl ItemsSource="{Binding EventRows}">
@@ -167,6 +190,21 @@
                     </ItemsControl>
                     <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0" TextWrapping="Wrap"
                                Text="Always on runs an event all year: the decorations, event NPCs and their rewards appear the next time the server starts. Dates follow Japan time, as on retail. These are the seasonal events LandSandBoat has built; other holidays aren't in the server yet." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Updates" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="LocalXI only downloads newer versions of these when you install a newer LocalXI that ships them. Addons update only when you press Check for updates on the Addons page, and each can be kept at its version there." />
+                    <CheckBox Content="Keep my current server (LandSandBoat) when LocalXI ships a newer one" IsChecked="{Binding HoldServerUpdates}" Margin="0,0,0,6"
+                              Visibility="{Binding RunsLocalServer, Converter={StaticResource BoolToVisibility}}" />
+                    <CheckBox Content="Keep my current Ashita and xiloader when LocalXI ships newer ones" IsChecked="{Binding HoldClientUpdates}" Margin="0,0,0,6" />
+                    <TextBlock Text="{Binding HeldBackSummary}" Style="{StaticResource Hint}" TextWrapping="Wrap"
+                               Visibility="{Binding HeldBackSummary, Converter={StaticResource NullToVisibility}}" />
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Keeping old versions can stop things working: a newer LocalXI may expect the newer server, and after a Square Enix update the game often needs a newer Ashita and xiloader. Friends joining your world need a matching game version either way." />
                 </StackPanel>
             </Border>
 

@@ -56,6 +56,7 @@ public sealed class LauncherConfig
     public bool UseAshita { get; set; } = true;
     public ServerOptions Server { get; set; } = new();
     public BackupSettings Backups { get; set; } = new();
+    public UpdateSettings Updates { get; set; } = new();
 
     public bool RunsLocalServer => Mode != PlayMode.Join;
 }
@@ -116,6 +117,18 @@ public sealed class AddonSettings
 
     /// <summary>Texture packs in load order; the first one wins when two replace the same file.</summary>
     public List<TexturePack> TexturePacks { get; set; } = [];
+
+    /// <summary>Downloaded addons kept at the version on this PC: Check for updates leaves them alone.</summary>
+    public List<string> Held { get; set; } = [];
+
+    /// <summary>DrawDistance's world and character distance (1-20), or 0 to leave the game's own.</summary>
+    public int DrawDistance { get; set; }
+
+    /// <summary>
+    /// Which version of LocalXI's addon list these settings were saved with (see <c>AddonManager.Upgrade</c>). Settings
+    /// from before it existed read as 0.
+    /// </summary>
+    public int CatalogVersion { get; set; }
 }
 
 public enum ControllerType
@@ -174,6 +187,37 @@ public sealed class ServerOptions
     public string? OverrideDirectory { get; set; }
 
     public SeasonalEventSettings Events { get; set; } = new();
+
+    /// <summary>The name shown for the server in the game (15 characters at most), or null for LandSandBoat's own.</summary>
+    public string? ServerName { get; set; }
+
+    /// <summary>The message players see in chat after logging in, or null for LandSandBoat's own.</summary>
+    public string? WelcomeMessage { get; set; }
+
+    /// <summary>Player movement speed in percent of the game's normal speed.</summary>
+    public int SpeedPercent { get; set; } = 100;
+
+    /// <summary>Sub job level against the main job's: 1 half (retail), 2 two thirds, 3 the same level.</summary>
+    public int SubJobRatio { get; set; } = 1;
+
+    /// <summary>Weapon skill damage multiplier for the whole world.</summary>
+    public double WeaponSkillPower { get; set; } = 1.0;
+
+    /// <summary>
+    /// Load zones on demand in the classic era too, for PCs with little memory. Classic rules that live in zone
+    /// scripts then don't apply (see EraPresets.AllowsLazyZones).
+    /// </summary>
+    public bool LowMemory { get; set; }
+}
+
+/// <summary>Updates LocalXI makes when a newer LocalXI release pins newer versions of what it downloads.</summary>
+public sealed class UpdateSettings
+{
+    /// <summary>Keep the installed LandSandBoat server (and its game data) instead of updating it.</summary>
+    public bool HoldServer { get; set; }
+
+    /// <summary>Keep the installed Ashita and xiloader instead of updating them.</summary>
+    public bool HoldClient { get; set; }
 }
 
 public enum EventMode

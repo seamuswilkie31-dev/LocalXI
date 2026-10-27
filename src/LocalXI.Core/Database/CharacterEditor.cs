@@ -27,10 +27,13 @@ public sealed record GmSettings(int Level, bool GmMode, bool NewAdventurer);
 public sealed record StorageSizes(int Inventory, int Safe, int Locker, bool LockerLeased, int Satchel, int Sack, int Case, int Wardrobes);
 
 /// <summary>
-/// Sub job unlocked, Dual Wield on every job (LocalXI module), every unlockable weapon skill learned, and every map
-/// key item owned.
+/// Sub job unlocked, Dual Wield on every job (LocalXI module), every unlockable weapon skill learned, every map key
+/// item owned, and every mount key item owned (with the chocobo license).
 /// </summary>
-public sealed record AbilityUnlocks(bool SubJob, bool DualWield, bool AllWeaponSkills, bool AllMaps);
+public sealed record AbilityUnlocks(bool SubJob, bool DualWield, bool AllWeaponSkills, bool AllMaps, bool AllMounts = false);
+
+/// <summary>Key item lists the ability switches need, read from the installed server (see GameCatalog).</summary>
+public sealed record KeyItemSets(IReadOnlyCollection<int> Maps, IReadOnlyCollection<int> Mounts);
 
 /// <summary>One crafting skill (fishing or a synthesis craft) as a whole level, with its guild rank (xi.craftRank).</summary>
 public sealed record CraftSkill(int SkillId, string Name, int Level, int Rank);
@@ -404,28 +407,35 @@ public sealed class CharacterEditor(GameDatabase database)
     /// </summary>
     internal static readonly byte[] AllWeaponSkills = [0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
 
-    /// <param name="mapKeyItems">Every map's key item id, from <see cref="GameCatalog.MapKeyItems"/>.</param>
-    public async Task<AbilityUnlocks> GetAbilityUnlocksAsync(uint charId, IReadOnlyCollection<int> mapKeyItems, CancellationToken cancellationToken = default)
+    /// <summary>xi.keyItem.CHOCOBO_LICENSE: lets a character hire a chocobo, so it goes with the mounts.</summary>
+    public const int ChocoboLicense = 138;
+
+    /// <param name="keyItemSets">Every map's and mount's key item id, from <see cref="GameCatalog"/>.</param>
+    public async Task<AbilityUnlocks> GetAbilityUnlocksAsync(uint charId, KeyItemSets keyItemSets, CancellationToken cancellationToken = default)
     {
+        var mapKeyItems = keyItemSets.Maps;
         var subJob = (Convert.ToInt64(await database.ScalarAsync("SELECT unlocked FROM char_jobs WHERE charid = @id", Id(charId), cancellationToken) ?? 0) & SubJobBit) != 0;
         var dualWield = Convert.ToInt64(await database.ScalarAsync(
             "SELECT COUNT(*) FROM char_vars WHERE charid = @id AND varname = @var AND value = 1", Args(charId, ("@var", LocalXiModule.DualWieldVar)), cancellationToken)) > 0;
         var learned = await database.ScalarAsync("SELECT weaponskills FROM chars WHERE charid = @id", Id(charId), cancellationToken) as byte[];
         var keyItems = await database.ScalarAsync("SELECT keyitems FROM chars WHERE charid = @id", Id(charId), cancellationToken) as byte[];
         var allMaps = mapKeyItems.Count > 0 && mapKeyItems.All(map => KeyItemBlob.Has(keyItems, map));
-        return new AbilityUnlocks(subJob, dualWield, HasAllWeaponSkills(learned), allMaps);
+        var allMounts = keyItemSets.Mounts.Count > 0 && keyItemSets.Mounts.All(mount => KeyItemBlob.Has(keyItems, mount));
+        return new AbilityUnlocks(subJob, dualWield, HasAllWeaponSkills(learned), allMaps, allMounts);
     }
 
     internal static bool HasAllWeaponSkills(byte[]? learned) =>
         learned is { Length: >= 8 } && AllWeaponSkills.Select((bits, i) => (learned[i] & bits) == bits).All(set => set);
 
     /// <summary>
-    /// Applies the switches. Weapon skills and maps are only written when their switch changes: on gives all of
-    /// them, off takes all of them away (including any earned or bought in game).
+    /// Applies the switches. Weapon skills, maps and mounts are only written when their switch changes: on gives all
+    /// of them, off takes all of them away (including any earned or bought in game). The chocobo license comes with
+    /// the mounts but stays when they're taken away, as it's normally earned by a quest.
     /// </summary>
-    public async Task SetAbilityUnlocksAsync(uint charId, AbilityUnlocks unlocks, IReadOnlyCollection<int> mapKeyItems, CancellationToken cancellationToken = default)
+    public async Task SetAbilityUnlocksAsync(uint charId, AbilityUnlocks unlocks, KeyItemSets keyItemSets, CancellationToken cancellationToken = default)
     {
-        var before = await GetAbilityUnlocksAsync(charId, mapKeyItems, cancellationToken);
+        var mapKeyItems = keyItemSets.Maps;
+        var before = await GetAbilityUnlocksAsync(charId, keyItemSets, cancellationToken);
         var keyItems = await database.ScalarAsync("SELECT keyitems FROM chars WHERE charid = @id", Id(charId), cancellationToken) as byte[];
         await using var connection = await database.OpenAsync(cancellationToken: cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -455,12 +465,27 @@ public sealed class CharacterEditor(GameDatabase database)
             await weaponSkills.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        var updatedKeyItems = keyItems;
         if (unlocks.AllMaps != before.AllMaps && mapKeyItems.Count > 0)
         {
-            await using var maps = new MySqlCommand("UPDATE chars SET keyitems = @keyitems WHERE charid = @id", connection, transaction);
-            maps.Parameters.AddWithValue("@keyitems", KeyItemBlob.Set(keyItems, mapKeyItems, unlocks.AllMaps));
-            maps.Parameters.AddWithValue("@id", charId);
-            await maps.ExecuteNonQueryAsync(cancellationToken);
+            updatedKeyItems = KeyItemBlob.Set(updatedKeyItems, mapKeyItems, unlocks.AllMaps);
+        }
+
+        if (unlocks.AllMounts != before.AllMounts && keyItemSets.Mounts.Count > 0)
+        {
+            updatedKeyItems = KeyItemBlob.Set(updatedKeyItems, keyItemSets.Mounts, unlocks.AllMounts);
+            if (unlocks.AllMounts)
+            {
+                updatedKeyItems = KeyItemBlob.Set(updatedKeyItems, [ChocoboLicense], owned: true);
+            }
+        }
+
+        if (!ReferenceEquals(updatedKeyItems, keyItems))
+        {
+            await using var write = new MySqlCommand("UPDATE chars SET keyitems = @keyitems WHERE charid = @id", connection, transaction);
+            write.Parameters.AddWithValue("@keyitems", updatedKeyItems);
+            write.Parameters.AddWithValue("@id", charId);
+            await write.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);

@@ -27,13 +27,16 @@ nothing is changed. Backups are named `before-modify-<date>` and kept in `Docume
 Your characters go back to how they were before you started editing (the current state is backed up too, so
 even the undo can be undone).
 
-## The EXP rate
+## The EXP rate and weapon skill damage
 
 The **EXP rate** box at the top sets how fast characters earn experience: ×1 (normal), ×1.5, ×2, ×2.5 or ×3.
 Pick one and press **Set**. It applies the next time the server starts.
 
-The EXP rate applies to **everyone on the world**, not just the selected character, because LandSandBoat has
-one rate for the whole server.
+**Weapon skill damage** next to it multiplies the damage of every weapon skill: ×1 (normal), ×1.25, ×1.5, ×2,
+×2.5 or ×3. Pick one and press **Set**; it also applies the next time the server starts.
+
+Both apply to **everyone on the world**, not just the selected character, because LandSandBoat has one setting
+for the whole server.
 
 ## Inventory
 
@@ -80,6 +83,10 @@ Tick what you want and press **Save abilities**.
 - **All maps unlocked:** gives every map key item (134 in this server version), so the in-game map menu shows
   every area, as if each map had been bought or found. Unticking takes all of them away, including any bought in
   game.
+- **All mounts unlocked:** gives every mount key item (39 in this server version, the same set as LandSandBoat's
+  `!addallmounts` command) and the chocobo license. Ride with `/mount` or the Mounts menu. Mounts other than
+  chocobos came long after the level-75 era, so a classic world may not let you ride every one everywhere.
+  Unticking takes the mounts away again; the chocobo license stays.
 
 ## Crafting
 

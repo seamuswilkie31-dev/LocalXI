@@ -157,10 +157,13 @@ public sealed partial class PlayViewModel : PageViewModel
             warnings.Add("DirectPlay is turned off on this PC. FINAL FANTASY XI needs it, and without it the game can close as soon as it starts. Press \"Turn on DirectPlay\" below.");
         }
 
-        if (config.RunsLocalServer && GameDiagnostics.TotalMemoryGb < GameDiagnostics.LowMemoryGb)
+        // Low memory mode (and modern worlds) load zones on demand, so the server stays small.
+        var allZonesLoaded = config.Server.Era == GameEra.Classic75 && !config.Server.LowMemory;
+        if (config.RunsLocalServer && allZonesLoaded && GameDiagnostics.TotalMemoryGb < GameDiagnostics.LowMemoryGb)
         {
-            warnings.Add($"This PC has {GameDiagnostics.TotalMemoryGb:0.#} GB of memory. The server uses about 3 GB of it, so loading the world can take several minutes " +
-                         "and the game may close if memory runs out. Close other programs before pressing Play (16 GB is recommended for hosting or playing solo).");
+            warnings.Add($"This PC has {GameDiagnostics.TotalMemoryGb:0.#} GB of memory. A classic world uses about 3 GB of it, so loading can take several minutes " +
+                         "and the game may close if memory runs out. Turn on Settings > Server > Low memory mode, which keeps the server to a few hundred MB, " +
+                         "or close other programs before pressing Play.");
         }
 
         if (Launcher.MissingComponents().Count > 0)

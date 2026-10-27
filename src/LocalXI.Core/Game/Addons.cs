@@ -55,39 +55,87 @@ public sealed record InstalledAddon(string Id, string Version);
 /// </summary>
 public sealed partial class AddonManager(AppPaths paths, HttpClient http)
 {
+    // Plugins are compiled against one Ashita plugin interface; where a release offers one zip per interface, the
+    // pattern picks the build for Ashita 4.3 (interface 4.30), the version LocalXI pins.
+    private const string Interface430 = @"Interface\.4\.30\.zip$";
+
+    /// <summary>In alphabetical order, as the Addons page lists them.</summary>
     public static readonly IReadOnlyList<AddonInfo> Catalog =
     [
-        new("minimap", "Minimap", AddonKind.Plugin, "A minimap of the area in the corner of the screen."),
-        new("minimapmon", "Minimapmon", AddonKind.Addon, "Hides the minimap at times, such as while standing still. Needs Minimap."),
-        new("nameplate", "Nameplate", AddonKind.Plugin, "Fixes the game's nameplate drawing (names flickering or showing through walls).",
-            AddonOrigin.GitHubRelease, "Shirk/Nameplate"),
-        new("thirdparty", "Thirdparty", AddonKind.Plugin, "Commands other tools and scripts rely on. Part of Ashita's default setup."),
+        new("amantracker", "AMANTracker", AddonKind.Addon, "Tracks your Adventurers' Mutual Aid Network training: monsters left to defeat.",
+            AddonOrigin.GitHubFolder, "seekey13/AMANTracker", Folder: ""),
         new("aspect", "Aspect", AddonKind.Addon, "Makes the game's aspect ratio match the window, for wide and ultra-wide screens."),
+        new("blucheck", "BluCheck", AddonKind.Addon, "A window listing which Blue Magic spells you've learned."),
+        new("blumon", "BluMon", AddonKind.Addon, "Announces newly learned Blue Magic spells in colour."),
+        new("blusets", "BluSets", AddonKind.Addon, "Saves and loads sets of Blue Magic spells with commands (/blusets)."),
+        new("cfhblock", "CFHBlock", AddonKind.Addon, "Blocks Call for Help, so it can't be pressed by accident."),
         new("checker", "Checker", AddonKind.Addon, "Shows monster levels and colours /check results."),
         new("cleancs", "CleanCS", AddonKind.Addon, "Hides addon windows during cutscenes."),
-        new("freemem", "Freemem", AddonKind.Addon, "Asks Windows to free memory the game isn't using, once when loaded."),
+        new("craftmon", "Craftmon", AddonKind.Addon, "Shows a synthesis result (normal, high quality or break) as soon as it starts."),
+        new("crystalbuff", "CrystalBuff", AddonKind.Addon, "Watches your crystal buff (Signet, Sanction or Sigil) and switches it to the right one for the zone.",
+            AddonOrigin.GitHubFolder, "seekey13/CrystalBuff", Folder: ""),
+        new("debuff", "Debuff", AddonKind.Addon, "Removes one of your own status effects with a command (/debuff)."),
+        new("distance", "Distance", AddonKind.Addon, "Shows the distance to your target. Part of Ashita's default setup."),
+        new("drawdistance", "DrawDistance", AddonKind.Addon, "Draws the world and characters further away. Pick how far below the list."),
+        new("easyth", "EasyTH", AddonKind.Addon, "Tracks Treasure Hunter procs on the monsters you fight.",
+            AddonOrigin.GitHubRelease, "ariel-logos/easyTH"),
+        new("equipmon", "Equipmon", AddonKind.Addon, "Shows your equipment on screen at all times (Ashita's counterpart to EquipViewer)."),
+        new("fancychat", "FancyChat", AddonKind.Addon, "A restyled chat window with colours, filters and notifications (/fancychat). A large download (about 120 MB).",
+            AddonOrigin.GitHubFolder, "ariel-logos/FancyChat", Folder: ""),
+        new("fancycompass", "FancyCompass", AddonKind.Addon, "A compass and clock showing nearby players, NPCs and monsters as dots (/fancycompass).",
+            AddonOrigin.GitHubFolder, "ariel-logos/FancyCompass", Folder: ""),
+        new("fancytrusts", "FancyTrusts", AddonKind.Addon, "A window for calling your trusts with a click.",
+            AddonOrigin.GitHubRelease, "ariel-logos/FancyTrusts"),
+        new("findall", "FindAll", AddonKind.Plugin, "Finds an item in any bag of any of your characters on this PC (/findall).",
+            AddonOrigin.GitHubRelease, "ThornyFFXI/FindAll", AssetPattern: Interface430),
         new("fps", "FPS", AddonKind.Addon, "Shows the frame rate and changes the frame rate cap (/fps)."),
+        new("freemem", "Freemem", AddonKind.Addon, "Asks Windows to free memory the game isn't using, once when loaded."),
         new("instantchat", "InstantChat", AddonKind.Addon, "Removes the delay before chat messages appear. Its authors note it can crash."),
         new("mapdot", "Mapdot", AddonKind.Addon, "Shows enemies on the compass on every job."),
+        new("minimap", "Minimap", AddonKind.Plugin, "A minimap of the area in the corner of the screen."),
+        new("minimapmon", "Minimapmon", AddonKind.Addon, "Hides the minimap at times, such as while standing still. Needs Minimap."),
         new("mobdb", "MobDB", AddonKind.Addon, "Monster information on screen: level, weaknesses, aggro and more.",
             AddonOrigin.GitHubRelease, "ThornyFFXI/mobdb"),
+        new("nameplate", "Nameplate", AddonKind.Plugin, "Sharper, correctly sized nameplates at any window size (/nameplate). The Ashita 4.3 version of the original, which its author stopped updating.",
+            AddonOrigin.GitHubRelease, "SmithReact/Nameplate", AssetPattern: @"ashita4\.30.*\.zip$"),
         new("nolock", "NoLock", AddonKind.Addon, "Engage and disengage without the animation lock.",
             AddonOrigin.GitHubRelease, "WinterSolstice8/nolock"),
+        new("noname", "NoName (Nameless)", AddonKind.Addon, "Hides your own character's name; everyone else's stays."),
         new("sexchange", "Sexchange", AddonKind.Addon, "Change your character's race and hair style with commands (only on your screen)."),
-        new("statustimers", "Statustimers", AddonKind.Addon, "Status effect icons with timers, configurable.",
-            AddonOrigin.GitHubRelease, "HealsCodes/statustimers"),
+        new("shorthand", "Shorthand", AddonKind.Plugin, "Shorter commands for spells and abilities, such as /cure3 or /fire.",
+            AddonOrigin.GitHubRelease, "ThornyFFXI/Shorthand", AssetPattern: Interface430),
         new("skillchains", "Skillchains (Chains)", AddonKind.Addon, "Shows the skillchain on your target, its timer and which weapon skills continue it.",
             AddonOrigin.GitHubFolder, "Sippius/Ashita-v4-addons", Folder: "chains", LoadName: "chains"),
+        new("statustimers", "Statustimers", AddonKind.Addon, "Status effect icons with timers, configurable.",
+            AddonOrigin.GitHubRelease, "HealsCodes/statustimers"),
+        new("thirdparty", "Thirdparty", AddonKind.Plugin, "Commands other tools and scripts rely on. Part of Ashita's default setup."),
+        new("thotbar", "tHotBar", AddonKind.Addon, "Hotbars for your macros, abilities and spells (Ashita's counterpart to Windower's FFXI Hotbar).",
+            AddonOrigin.GitHubRelease, "ThornyFFXI/tHotBar"),
         new("timestamp", "Timestamp", AddonKind.Addon, "Adds the time to chat messages."),
         new("tparty", "TParty", AddonKind.Addon, "Shows party members' TP and your target's health percent."),
         new("xicamera", "XICamera", AddonKind.Addon, "Lets the camera zoom further out (/camera).",
             AddonOrigin.GitHubRelease, "Hokuten85/XICamera", AssetPattern: "ashita4"),
-        new("xivbar", "XIVBar", AddonKind.Addon, "FFXIV-style HP, MP and TP bars.",
-            AddonOrigin.GitHubRelease, "tirem/XIVBar"),
         new("xiui", "XIUI", AddonKind.Addon, "A full interface overhaul: party list, target bar, hotbars and more (/xiui).",
             AddonOrigin.GitHubRelease, "tirem/XIUI", AssetPattern: @"^XIUI-[\d.]+\.zip$"),
+        new("xivbar", "XIVBar", AddonKind.Addon, "FFXIV-style HP, MP and TP bars.",
+            AddonOrigin.GitHubRelease, "tirem/XIVBar"),
+        new("xivparty", "XivParty", AddonKind.Addon, "An FFXIV-style party list with HP, MP, TP, jobs and buffs.",
+            AddonOrigin.GitHubRelease, "tirem/XivParty"),
         new("zonename", "Zonename", AddonKind.Addon, "Shows the zone and region name for a moment when you change zones.",
             AddonOrigin.GitHubRelease, "onimitch/ffxi-zonename"),
+    ];
+
+    /// <summary>
+    /// Addons people ask for that only exist for Windower or the old Ashita v3, which Ashita v4 can't run, with what
+    /// to use instead. The Addons page lists them so nobody has to wonder.
+    /// </summary>
+    public static readonly IReadOnlyList<(string Name, string Instead)> Unavailable =
+    [
+        ("FFXI Hotbar (SirEdeonX, Akirane)", "Windower only. tHotBar, XIUI and XIVBar do the same in Ashita."),
+        ("EnemyBar2 (Mmckee, Akaden)", "Windower only. XIUI's target bar and MobDB cover the same ground."),
+        ("InfoHUD (DreamEyes)", "Windower only, and built around Windower's GearSwap."),
+        ("EquipViewer (Tako, Rubenator)", "Only for the old Ashita v3. Equipmon shows your equipment the same way."),
+        ("Minimap (FFXIDB)", "Windower only. Ashita's own Minimap plugin is in the list."),
     ];
 
     /// <summary>XIPivot (a PlayOnline plugin Ashita loads at start-up) puts texture and DAT packs over the game's files.</summary>
@@ -98,7 +146,38 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
     private static readonly AddonInfo WineFix = new("winefix", "Wine fix", AddonKind.Plugin, "Fixes a micro-stutter under newer Wine versions.");
 
     /// <summary>What Ashita's own default script loads, so a new LocalXI install plays the same as before.</summary>
-    public static readonly IReadOnlyList<string> Defaults = ["thirdparty", "fps", "timestamp", "tparty"];
+    public static readonly IReadOnlyList<string> Defaults = ["distance", "fps", "thirdparty", "timestamp", "tparty"];
+
+    /// <summary>
+    /// Ashita default-script addons that joined the list in a later LocalXI version, by the version that added them.
+    /// Before that they loaded from Ashita's script whatever the Addons page said, so existing setups get them ticked.
+    /// </summary>
+    private static readonly IReadOnlyList<(int Version, string Id)> DefaultsAddedLater = [(2, "distance")];
+
+    public const int CatalogVersion = 2;
+
+    /// <summary>Brings settings saved by an older LocalXI up to the current list (see <see cref="DefaultsAddedLater"/>).</summary>
+    public static bool Upgrade(AddonSettings settings)
+    {
+        if (settings.CatalogVersion >= CatalogVersion)
+        {
+            return false;
+        }
+
+        foreach (var (_, id) in DefaultsAddedLater.Where(d => d.Version > settings.CatalogVersion))
+        {
+            if (!settings.Enabled.Contains(id))
+            {
+                settings.Enabled.Add(id);
+            }
+        }
+
+        settings.CatalogVersion = CatalogVersion;
+        return true;
+    }
+
+    /// <summary>The draw distance choices for the DrawDistance addon (its multiplier of the game's own).</summary>
+    public static readonly IReadOnlyList<int> DrawDistances = Enumerable.Range(1, 20).ToList();
 
     public const string ScriptName = "localxi.txt";
     private const string MarkerFile = ".localxi-version";
@@ -116,9 +195,17 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
 
     private string AddonFolder(AddonInfo addon) => Path.Combine(CacheDir, addon.Id);
 
+    /// <summary>
+    /// On this PC and usable. A downloaded plugin built for an older Ashita doesn't count, so it's downloaded again
+    /// (LocalXI 0.2.0 fetched one such Nameplate before its listing moved to an Ashita 4.3 build).
+    /// </summary>
     public bool IsAvailable(AddonInfo addon) => addon.Origin == AddonOrigin.Bundled
         ? File.Exists(BundledPath(addon))
-        : InstalledVersion(addon) is not null;
+        : InstalledVersion(addon) is not null && UnfitPlugins(AddonFolder(addon)).Count == 0;
+
+    /// <summary>Downloaded, but its plugin won't load in this Ashita: the next Save or Play downloads it again.</summary>
+    public bool IsOutdatedPlugin(AddonInfo addon) =>
+        addon.Origin != AddonOrigin.Bundled && InstalledVersion(addon) is not null && UnfitPlugins(AddonFolder(addon)).Count > 0;
 
     private string BundledPath(AddonInfo addon) => addon.Kind == AddonKind.Plugin
         ? Path.Combine(paths.AshitaDir, "plugins", addon.Load + ".dll")
@@ -171,6 +258,7 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
 
             var layout = Path.Combine(staging, "ashita");
             ExtractToAshitaLayout(addon, zipPath, layout);
+            CheckPluginsFitAshita(addon, layout);
 
             var target = AddonFolder(addon);
             DeleteDirectory(target);
@@ -199,7 +287,7 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
         {
             // codeload zips hold one "<repo>-<commit>" folder.
             var repoRoot = Directory.GetDirectories(raw).Single();
-            var folder = Path.Combine(repoRoot, addon.Folder!);
+            var folder = addon.Folder is { Length: > 0 } sub ? Path.Combine(repoRoot, sub) : repoRoot;
             if (!Directory.Exists(folder))
             {
                 throw new InvalidDataException($"{addon.Name}: the folder '{addon.Folder}' is no longer in {addon.Repository}.");
@@ -242,8 +330,46 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
             throw new InvalidDataException($"{addon.Name}: the download isn't laid out like an Ashita addon or plugin.");
         }
 
-        CopyDirectory(root, layout);
+        // Only Ashita's own folders: some releases also carry their source code or notes alongside.
+        foreach (var folder in Directory.GetDirectories(root).Where(d => ashitaFolders.Contains(Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)))
+        {
+            CopyDirectory(folder, Path.Combine(layout, Path.GetFileName(folder).ToLowerInvariant()));
+        }
     }
+
+    /// <summary>
+    /// Ashita 4.3 only loads plugins with all three of its plugin exports; one built for an older Ashita fails in game
+    /// with "Plugin is missing required exports". Checking here turns that into a clear message at download time.
+    /// </summary>
+    internal static void CheckPluginsFitAshita(AddonInfo addon, string layout)
+    {
+        var unfitPlugins = UnfitPlugins(layout);
+        if (unfitPlugins.Count > 0)
+        {
+            var unfit = unfitPlugins[0];
+            throw new InvalidDataException(
+                $"{addon.Name}'s newest download ({unfit.Dll}) was built for an older version of Ashita and won't load in the one " +
+                $"LocalXI uses (it lacks {string.Join(", ", unfit.Missing)}).");
+        }
+    }
+
+    /// <summary>Plugins in a layout that lack one of the exports Ashita 4.3 requires, with what they lack.</summary>
+    internal static IReadOnlyList<(string Dll, IReadOnlyList<string> Missing)> UnfitPlugins(string layout)
+    {
+        var plugins = Path.Combine(layout, "plugins");
+        if (!Directory.Exists(plugins))
+        {
+            return [];
+        }
+
+        return Directory.GetFiles(plugins, "*.dll")
+            .Select(dll => (Dll: Path.GetFileName(dll), Exports: PeExports.Read(dll)))
+            .Select(p => (p.Dll, Missing: (IReadOnlyList<string>)RequiredPluginExports.Where(e => !p.Exports.Contains(e)).ToList()))
+            .Where(p => p.Missing.Count > 0)
+            .ToList();
+    }
+
+    private static readonly string[] RequiredPluginExports = ["expCreatePlugin", "expDestroyPlugin", "expGetInterfaceVersion"];
 
     private async Task<(string Tag, string Url)> LatestReleaseAsync(AddonInfo addon, CancellationToken cancellationToken)
     {
@@ -263,7 +389,9 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
     private async Task<string> LatestFolderCommitAsync(AddonInfo addon, CancellationToken cancellationToken)
     {
         var commits = await GetJsonAsync<List<GitHubCommit>>(
-            $"https://api.github.com/repos/{addon.Repository}/commits?path={Uri.EscapeDataString(addon.Folder!)}&per_page=1", cancellationToken);
+            addon.Folder is { Length: > 0 } folder
+                ? $"https://api.github.com/repos/{addon.Repository}/commits?path={Uri.EscapeDataString(folder)}&per_page=1"
+                : $"https://api.github.com/repos/{addon.Repository}/commits?per_page=1", cancellationToken);
         return commits.FirstOrDefault()?.Sha ?? throw new InvalidDataException($"{addon.Name}: no commits found in {addon.Repository}.");
     }
 
@@ -336,7 +464,7 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
         }
 
         // Ashita's winefix plugin fixes a micro-stutter under newer Wine versions; it's only for Linux.
-        WriteScript(OperatingSystemInfo.IsWine ? enabled.Append(WineFix) : enabled);
+        WriteScript(OperatingSystemInfo.IsWine ? enabled.Append(WineFix) : enabled, SettingCommands(settings, enabled));
 
         var pivot = settings.PivotEnabled && IsAvailable(Pivot) && TryCopyIntoAshita(Pivot, warn);
         if (pivot)
@@ -436,16 +564,30 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
     /// lines replaced by the player's choices. Ashita's own plugins LocalXI doesn't list (addons, screenshot) and
     /// addons it doesn't list (distance, move) stay as Ashita has them.
     /// </summary>
-    internal void WriteScript(IEnumerable<AddonInfo> enabled)
+    internal void WriteScript(IEnumerable<AddonInfo> enabled, IEnumerable<string>? commands = null)
     {
         var scripts = Path.Combine(paths.AshitaDir, "scripts");
         Directory.CreateDirectory(scripts);
         var defaults = Path.Combine(scripts, "default.txt");
         var lines = File.Exists(defaults) ? File.ReadAllLines(defaults) : ["/load addons"];
-        File.WriteAllText(Path.Combine(scripts, ScriptName), BuildScript(lines, enabled));
+        File.WriteAllText(Path.Combine(scripts, ScriptName), BuildScript(lines, enabled, commands));
     }
 
-    internal static string BuildScript(IReadOnlyList<string> defaultScript, IEnumerable<AddonInfo> enabled)
+    /// <summary>Commands that apply the Addons page's settings for addons once they've loaded.</summary>
+    internal static IEnumerable<string> SettingCommands(AddonSettings settings, IEnumerable<AddonInfo> enabled)
+    {
+        if (settings.DrawDistance > 0 && enabled.Any(a => a.Id == "drawdistance"))
+        {
+            yield return $"/drawdistance setworld {settings.DrawDistance}";
+            yield return $"/drawdistance setentity {settings.DrawDistance}";
+        }
+    }
+
+    /// <param name="commands">
+    /// Commands for the addons, added at the end: after Ashita's own <c>/wait</c>, which addons need before they see
+    /// commands from the script.
+    /// </param>
+    internal static string BuildScript(IReadOnlyList<string> defaultScript, IEnumerable<AddonInfo> enabled, IEnumerable<string>? commands = null)
     {
         var listed = Catalog.SelectMany(a => new[] { a.Id, a.Load }).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var plugins = new List<string>();
@@ -488,6 +630,19 @@ public sealed partial class AddonManager(AppPaths paths, HttpClient http)
         output.AddRange(addons);
         output.Add("");
         output.AddRange(rest);
+        var settingCommands = commands?.ToList() ?? [];
+        if (settingCommands.Count > 0)
+        {
+            if (!rest.Any(l => l.Trim().StartsWith("/wait", StringComparison.OrdinalIgnoreCase)))
+            {
+                output.Add("/wait 3");
+            }
+
+            output.Add("");
+            output.Add("# Addon settings from LocalXI's Addons page.");
+            output.AddRange(settingCommands);
+        }
+
         return string.Join(Environment.NewLine, output) + Environment.NewLine;
     }
 

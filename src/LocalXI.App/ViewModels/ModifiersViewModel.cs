@@ -88,6 +88,7 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     public ObservableCollection<CraftRow> CraftRows { get; } = [];
 
     public IReadOnlyList<double> ExpRates => ServerSettingsFiles.ExpRates;
+    public IReadOnlyList<double> WeaponSkillPowers => ServerSettingsFiles.WeaponSkillPowers;
     public IReadOnlyList<int> FameLevels { get; } = Enumerable.Range(1, 9).ToList();
     public IReadOnlyList<QuestState> QuestStates { get; } = Enum.GetValues<QuestState>();
     public IReadOnlyList<string> QuestAreas => GameCatalog.QuestAreaNames;
@@ -127,6 +128,9 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
 
     [ObservableProperty]
     private double _expRate = 1.0;
+
+    [ObservableProperty]
+    private double _weaponSkillPower = 1.0;
 
     [ObservableProperty]
     private string _gil = "0";
@@ -173,6 +177,13 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     [ObservableProperty]
     private bool _allMaps;
 
+    [ObservableProperty]
+    private bool _allMounts;
+
+    public string MountsHint => Launcher.Catalog.MountKeyItems.Count == 0
+        ? "The server's mount list couldn't be read, so mounts can't be changed here."
+        : $"Gives every mount ({Launcher.Catalog.MountKeyItems.Count} in this server version) and the chocobo license, as if each had been earned. Ride with /mount or the Mounts menu. Mounts other than chocobos came long after the level-75 era, so a classic-era world may not let you ride every one everywhere. Unticking takes the mounts away again (the chocobo license stays).";
+
     public string MapsHint => Launcher.Catalog.MapKeyItems.Count == 0
         ? "The server's map list couldn't be read, so maps can't be changed here."
         : $"Gives every map ({Launcher.Catalog.MapKeyItems.Count} in this server version), so the map menu shows every area, as if each had been bought or found. Unticking takes all of them away, including any bought in game.";
@@ -201,6 +212,7 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
         OnPropertyChanged(nameof(MaxCraftLevel));
         OnPropertyChanged(nameof(CraftHint));
         ExpRate = Launcher.Config.Server.ExpRate;
+        WeaponSkillPower = ServerSettingsFiles.WeaponSkillPowers.Contains(Launcher.Config.Server.WeaponSkillPower) ? Launcher.Config.Server.WeaponSkillPower : 1.0;
         ServerRunning = Launcher.Config.RunsLocalServer && Launcher.Server.IsRunning;
         _ = LoadCharactersAsync();
     }
@@ -280,9 +292,11 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
                 ? "The server's home point list couldn't be read."
                 : $"{registered} of {catalog.HomePoints.Count} home point crystals registered.";
 
-            var abilities = await editor.GetAbilityUnlocksAsync(character.Id, catalog.MapKeyItems);
-            (SubJobUnlocked, DualWield, AllWeaponSkills, AllMaps) = (abilities.SubJob, abilities.DualWield, abilities.AllWeaponSkills, abilities.AllMaps);
+            var abilities = await editor.GetAbilityUnlocksAsync(character.Id, KeyItemSets);
+            (SubJobUnlocked, DualWield, AllWeaponSkills, AllMaps, AllMounts) =
+                (abilities.SubJob, abilities.DualWield, abilities.AllWeaponSkills, abilities.AllMaps, abilities.AllMounts);
             OnPropertyChanged(nameof(MapsHint));
+            OnPropertyChanged(nameof(MountsHint));
 
             CraftRows.Clear();
             foreach (var craft in await editor.GetCraftsAsync(character.Id))
@@ -408,6 +422,16 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     }
 
     [RelayCommand]
+    private void SaveWeaponSkillPower()
+    {
+        Launcher.Config.Server.WeaponSkillPower = WeaponSkillPower;
+        Launcher.SaveConfig();
+        Main.Status = Launcher.Server.IsRunning
+            ? $"Weapon skill damage set to x{WeaponSkillPower}. It applies the next time the server starts."
+            : $"Weapon skill damage set to x{WeaponSkillPower}.";
+    }
+
+    [RelayCommand]
     private Task SetGilAsync()
     {
         if (!uint.TryParse(Gil.Replace(",", "").Replace(".", "").Replace(" ", ""), NumberStyles.None, CultureInfo.InvariantCulture, out var gil))
@@ -494,7 +518,9 @@ public sealed partial class ModifiersViewModel(MainViewModel main) : PageViewMod
     [RelayCommand]
     private Task SaveAbilitiesAsync() =>
         EditAsync("Abilities saved.", (editor, id) =>
-            editor.SetAbilityUnlocksAsync(id, new AbilityUnlocks(SubJobUnlocked, DualWield, AllWeaponSkills, AllMaps), Launcher.Catalog.MapKeyItems));
+            editor.SetAbilityUnlocksAsync(id, new AbilityUnlocks(SubJobUnlocked, DualWield, AllWeaponSkills, AllMaps, AllMounts), KeyItemSets));
+
+    private KeyItemSets KeyItemSets => new(Launcher.Catalog.MapKeyItems, Launcher.Catalog.MountKeyItems);
 
     [RelayCommand]
     private void SetAllCrafts()

@@ -29,12 +29,14 @@ public sealed partial class GameCatalog
         ["AHT_URHGAN"] = 6, ["CRYSTAL_WAR"] = 7, ["ABYSSEA"] = 8, ["ADOULIN"] = 9, ["COALITION"] = 10,
     };
 
-    private GameCatalog(IReadOnlyList<HomePointInfo> homePoints, IReadOnlyList<QuestInfo> quests, IReadOnlyList<int> fameRankPoints, IReadOnlyList<int> mapKeyItems)
+    private GameCatalog(IReadOnlyList<HomePointInfo> homePoints, IReadOnlyList<QuestInfo> quests, IReadOnlyList<int> fameRankPoints,
+        IReadOnlyList<int> mapKeyItems, IReadOnlyList<int> mountKeyItems)
     {
         HomePoints = homePoints;
         Quests = quests;
         FameRankPoints = fameRankPoints;
         MapKeyItems = mapKeyItems;
+        MountKeyItems = mountKeyItems;
     }
 
     public IReadOnlyList<HomePointInfo> HomePoints { get; }
@@ -42,6 +44,12 @@ public sealed partial class GameCatalog
 
     /// <summary>Key item ids of every map (xi.keyItem.MAP_OF_*), the same set the !addallmaps command gives.</summary>
     public IReadOnlyList<int> MapKeyItems { get; }
+
+    /// <summary>
+    /// Key item ids of every mount, the block from xi.keyItem.CHOCOBO_COMPANION to the last *_COMPANION (the mount
+    /// whistles in between too), as LandSandBoat's !addallmounts command gives them.
+    /// </summary>
+    public IReadOnlyList<int> MountKeyItems { get; }
 
     /// <summary>Fame points needed for levels 1..9 (index 0 is level 1).</summary>
     public IReadOnlyList<int> FameRankPoints { get; }
@@ -61,7 +69,24 @@ public sealed partial class GameCatalog
             Read("scripts", "globals", "homepoint.lua") is { } homepoints ? ParseHomePoints(homepoints) : [],
             Read("scripts", "globals", "quests.lua") is { } quests ? ParseQuests(quests, areas) : [],
             fame.Count == 9 ? fame : DefaultFameRankPoints,
-            Read("scripts", "enum", "key_item.codegen.lua") is { } keyItems ? ParseMapKeyItems(keyItems) : []);
+            Read("scripts", "enum", "key_item.codegen.lua") is { } keyItems ? ParseMapKeyItems(keyItems) : [],
+            Read("scripts", "enum", "key_item.codegen.lua") is { } keyItemEnum ? ParseMountKeyItems(keyItemEnum) : []);
+    }
+
+    internal static IReadOnlyList<int> ParseMountKeyItems(string lua)
+    {
+        var entries = KeyItemEntry().Matches(lua)
+            .Select(m => (Name: m.Groups[1].Value, Id: int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)))
+            .ToList();
+        var first = entries.FirstOrDefault(e => e.Name == "CHOCOBO_COMPANION");
+        var companions = entries.Where(e => e.Name.EndsWith("_COMPANION", StringComparison.Ordinal)).ToList();
+        if (first.Name is null || companions.Count == 0)
+        {
+            return [];
+        }
+
+        var last = companions.Max(e => e.Id);
+        return entries.Where(e => e.Id >= first.Id && e.Id <= last).Select(e => e.Id).Distinct().Order().ToList();
     }
 
     /// <summary>Lines like <c>MAP_OF_THE_SAN_DORIA_AREA = 385,</c> in the key item enum.</summary>
@@ -175,4 +200,7 @@ public sealed partial class GameCatalog
 
     [GeneratedRegex(@"^\s*MAP_OF_[A-Z0-9_]+\s*=\s*(\d+)\s*,", RegexOptions.Multiline)]
     private static partial Regex MapKeyItemEntry();
+
+    [GeneratedRegex(@"^\s*([A-Z0-9_]+)\s*=\s*(\d+)\s*,", RegexOptions.Multiline)]
+    private static partial Regex KeyItemEntry();
 }

@@ -188,7 +188,15 @@ name pattern when a release has several) or, for an addon kept as a folder in a 
 newest commit. Downloads are unpacked into `runtime\addons\<id>\`, laid out like Ashita's folder (a zip that is
 just the addon's own folder goes under `addons\`), because an Ashita update replaces Ashita's whole folder. Before
 each launch the switched-on downloads are copied into Ashita (skipped when the copied version already matches;
-settings files already there are kept).
+settings files already there are kept). Only Ashita's own folders are taken from a download (some carry their
+source code alongside).
+
+Plugins are compiled against one Ashita plugin interface. Where a release has one zip per interface, LocalXI picks
+the 4.30 build (Ashita 4.3). Every downloaded plugin is also read without loading it (`PeExports`): Ashita 4.3
+refuses plugins that don't export `expCreatePlugin`, `expDestroyPlugin` and `expGetInterfaceVersion` ("Plugin is
+missing required exports"), so such a download is refused with a clear message, and one already on the PC counts
+as not downloaded and is fetched again. That's how LocalXI 0.2.0's Nameplate, built for interface 4.16 by its
+abandoned original, gets replaced by the 4.30 port.
 
 Ashita runs a start-up script named in the boot config. LocalXI writes its own, `scripts\localxi.txt`, from
 Ashita's `default.txt`: its key binds and the plugins and addons LocalXI doesn't list stay as Ashita has them,
@@ -212,7 +220,26 @@ Left unmanaged, both are `-1` and the game keeps what its own Gamepad Config too
 The Starlight Celebration and the Egg Hunt decide from the date alone (`scripts/events`), so for those LocalXI's
 server module gets a `seasonal_events.lua` that overrides their date checks. Each registered event keeps its own
 copy of its check, so the module also swaps that copy in `xi.events.handler.checkSeasonalEvents`, which runs at
-start-up and every JST midnight.
+start-up and every JST midnight. With every event on its usual dates there's no module file: LandSandBoat logs a
+module that declares no overrides as an error.
+
+## World settings and updates
+
+Whole numbers travel as environment variables (`ServerTuning`): movement speed as `XI_MAP_BASE_SPEED` (normally
+50) and `XI_MAP_SPEED_LIMIT` (normally 80, raised in step so speed gear keeps its boost), and the sub job level as
+`XI_MAP_SUBJOB_RATIO` (1 half, 2 two thirds, 3 the same as the main job). Text and decimals can't, as LandSandBoat
+only types an environment override as a number when every character is a digit, so `ServerSettingsFiles` writes
+`settings/main.lua` (server name, welcome message, `WEAPON_SKILL_POWER`) and `settings/map.lua` (`EXP_RATE`) as
+copies of the defaults with those lines changed, and removes them again when everything is back to default.
+
+Low memory mode starts `xi_map` with `--lazy` in the classic era too. Measured with a classic world: about 120 MB
+at start-up instead of 2.9 GB. Module overrides are applied once at start-up, to zones that are loaded then, so the
+`era/lua` rules kept in zone scripts don't apply to zones loaded later.
+
+Updates only happen when a newer LocalXI pins newer component versions in `components.json`. Settings → Updates
+can hold the server (`server`, `meshes`) or Ashita and xiloader: a held component that is installed at any version
+counts as present (`ComponentInstaller.IsPresent`), so it isn't replaced, and as the server's version doesn't
+change, neither the game data nor the player data conversion runs again.
 
 ## Running under Wine
 

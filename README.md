@@ -19,7 +19,8 @@ friend's world. Your characters are saved on your PC and can be carried to anoth
 - Your own FINAL FANTASY XI install (see below)
 - About 2 GB of disk space for LocalXI, plus the game
 - Memory: 8 GB is enough to join a friend; **16 GB recommended to host or play solo** (the classic-era server
-  keeps every zone loaded, about 3 GB on its own)
+  keeps every zone loaded, about 3 GB on its own). With 8 GB or less, turn on **Settings → Server → Low memory
+  mode**: the server then starts at about 120 MB (some classic rules kept in zone scripts don't apply then)
 
 ## You bring the game
 
@@ -100,7 +101,7 @@ The **Modifiers** page edits the characters on your own world, one character at 
 | Inventory | Set gil; search every item in the game and add it; remove items (not ones being worn) |
 | Jobs | Set job levels and unlock jobs (up to 75 in classic mode) |
 | Crafting | Set Fishing and every craft's skill level, with the matching guild rank (up to 100 in classic mode) |
-| Abilities | Unlock the sub job, give the character Dual Wield on every job, learn every quest, relic, mythic and empyrean weapon skill, and unlock every map |
+| Abilities | Unlock the sub job, give the character Dual Wield on every job, learn every quest, relic, mythic and empyrean weapon skill, and unlock every map and every mount |
 | Fame | Set fame level 1–9 for San d'Oria, Bastok, Windurst and Norg |
 | Quests | Set any quest to not started, accepted or completed (the quest log only; no rewards) |
 | Home points | Register every home point crystal at once, so you can warp between them straight away |
@@ -108,8 +109,8 @@ The **Modifiers** page edits the characters on your own world, one character at 
 | Magic | Learn every White Magic, Black Magic, Blue Magic, Ninjutsu, song, summon and Geomancy spell (pick which), and every trust |
 | GM | Make the character a GM (level 0–5) to use LandSandBoat's `!` chat commands, switch GM mode or the New Adventurer "?" icon, and add the Judge's outfit |
 
-The same page sets the **EXP rate** (×1 to ×3). It applies to the whole world, because LandSandBoat has one
-rate for everyone.
+The same page sets the **EXP rate** (×1 to ×3) and **weapon skill damage** (×1 to ×3). They apply to the whole
+world, because LandSandBoat has one setting for everyone.
 
 Changes are saved straight into the database, so the server has to be stopped while you make them (the page
 offers to stop it). Everything is backed up automatically before the first change each session.
@@ -122,12 +123,17 @@ Step-by-step guide, including how to undo changes and a list of handy GM command
 The **Addons** page picks the Ashita addons and plugins that load with your game. They change how the game looks
 and works on your PC only; the server and your friends' games aren't affected.
 
-- **Comes with Ashita:** Minimap, Minimapmon, Thirdparty, Aspect, Checker, CleanCS, Freemem, FPS, InstantChat,
-  Mapdot, Sexchange, Timestamp and TParty.
+- **Comes with Ashita:** Aspect, BluCheck, BluMon, BluSets, CFHBlock, Checker, CleanCS, Craftmon, Debuff,
+  Distance, DrawDistance (pick how far to draw, 1 to 20), Equipmon, FPS, Freemem, InstantChat, Mapdot, Minimap,
+  Minimapmon, NoName (hides your own name), Sexchange, Thirdparty, Timestamp and TParty.
 - **Downloaded from the author's GitHub page**, at the newest version, when you tick one and press **Save
-  addons**: Nameplate, MobDB, NoLock, Statustimers, Skillchains (Chains), XICamera, XIVBar, XIUI and Zonename.
-  **Check for updates** fetches newer versions. These are other people's work, run inside your game; each has a
-  **Page** button to its source.
+  addons**: AMANTracker, CrystalBuff, EasyTH, FancyChat, FancyCompass, FancyTrusts, FindAll, MobDB, Nameplate,
+  NoLock, Shorthand, Skillchains (Chains), Statustimers, tHotBar, XICamera, XIUI, XIVBar, XivParty and Zonename.
+  **Check for updates** fetches newer versions; tick **Keep this version** on any you'd rather leave as they are.
+  These are other people's work, run inside your game; each has a **Page** button to its source. Plugins are
+  checked when they download, so one built for an older Ashita is refused instead of failing in game.
+- Some often-requested addons only exist for Windower or the old Ashita v3 (FFXI Hotbar, EnemyBar2, InfoHUD,
+  EquipViewer, FFXIDB's Minimap). The Addons page lists them with what to use instead.
 
 **Texture packs** (such as AshenbubsHD or XI-View) load through [XIPivot](https://github.com/HealsCodes/XIPivot),
 which lays them over the game's files without changing them. Tick **Use texture packs**, press **Open texture
@@ -143,6 +149,18 @@ one for Nintendo's A). **Change buttons** moves any action to another button. Vi
 playing with the window in the background are switches on the same page. PlayStation controllers work directly or
 through Steam Input / DS4Windows; Nintendo controllers need Steam Input (or BetterJoy for the Switch 1 Pro
 Controller), which makes them act like an Xbox controller.
+
+## Your world's settings
+
+**Settings → Server** also sets, for everyone on your world, the next time the server starts:
+
+- **Server name** (up to 15 letters) and a **welcome message** shown in chat after logging in
+- **Movement speed**, from normal up to twice as fast (speed gear and Flee still add to it)
+- **Sub job level**: half the main job's level as normal, two thirds, or the same as the main job (75/75, 99/99)
+- **Low memory mode**, for PCs with 8 GB or less (see [What you need](#what-you-need))
+
+**Settings → Updates** can keep your current server, or your current Ashita and xiloader, when a newer LocalXI
+ships newer ones. LocalXI never updates anything on its own otherwise, and addons only update when you ask.
 
 ## Seasonal events
 
@@ -167,6 +185,7 @@ and what to report.
 | "Ports are already in use" | Another FFXI server or launcher is running. Close it. |
 | The Windows key does nothing in game | Settings → Display → **Let the Windows key work while the game is open** (on by default; needs Ashita). Windows+Shift+Left/Right then moves the game to another monitor. |
 | An addon misbehaves or the game crashes after adding one | Untick it on the Addons page. Heavy HD texture packs can run the 32-bit game out of memory; try fewer packs. |
+| "Failed to load plugin 'nameplate'. Plugin is missing required exports." | LocalXI 0.2.0 downloaded a Nameplate built for an older Ashita. Update LocalXI: on the next Save or Play it replaces it with the Ashita 4.3 build. |
 | The controller does nothing | Settings → Controller: check the controller type, and for PlayStation controllers whether **Steam Input or DS4Windows** is ticked. Untick **Set up my controller here** to go back to the game's own Gamepad Config tool. |
 | Anything else | The **Logs** page shows everything the server and database print. |
 

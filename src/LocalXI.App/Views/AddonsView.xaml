@@ -68,7 +68,9 @@
                                     </CheckBox>
                                     <StackPanel Grid.Column="1" Margin="8,0,8,0">
                                         <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Source}" Style="{StaticResource Hint}" Margin="0" />
+                                        <TextBlock Text="{Binding Source}" Style="{StaticResource Hint}" Margin="0" TextWrapping="Wrap" />
+                                        <CheckBox Content="Keep this version (Check for updates skips it)" IsChecked="{Binding Held}" FontSize="12" Margin="0,2,0,0"
+                                                  Visibility="{Binding IsDownload, Converter={StaticResource BoolToVisibility}}" />
                                     </StackPanel>
                                     <Button Grid.Column="2" Content="Page" VerticalAlignment="Top" Padding="10,3"
                                             Command="{Binding DataContext.OpenHomepageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -77,8 +79,23 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <TextBlock Text="DrawDistance: how far to draw the world and characters" VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <ComboBox ItemsSource="{Binding DrawDistances}" SelectedItem="{Binding SelectedDrawDistance}" DisplayMemberPath="Label" Width="150" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Applies when DrawDistance is ticked: 1 is the game's usual distance and higher numbers draw further, at some cost in frame rate. You can change it in game too with /drawdistance setworld and setentity." />
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,10,0,0"
                                Text="Most addons have their own settings in game: type the addon's name as a command (for example /xiui, /mobdb or /camera). If the game starts misbehaving, untick the addons you added most recently. Check for updates asks each GitHub page for a newer version." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Not available for Ashita" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,6"
+                               Text="These addons are often asked for, but they only exist for Windower or the old Ashita v3, which can't load into the Ashita LocalXI uses:" />
+                    <TextBlock Text="{Binding Unavailable}" TextWrapping="Wrap" LineHeight="22" />
                 </StackPanel>
             </Border>
         </StackPanel>

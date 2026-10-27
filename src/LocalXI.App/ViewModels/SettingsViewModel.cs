@@ -27,6 +27,8 @@ public sealed partial class EventRow(SeasonalEvents.EventInfo info) : Observable
 
 public sealed record ControllerOption(ControllerType Type, string Label);
 
+public sealed record NumberOption(int Value, string Label);
+
 public sealed partial class GamepadButtonRow(GamepadAction action) : ObservableObject
 {
     public GamepadAction Action { get; } = action;
@@ -158,6 +160,42 @@ public sealed partial class SettingsViewModel(MainViewModel main) : PageViewMode
     private bool _lazyZones;
 
     [ObservableProperty]
+    private string _serverName = "";
+
+    [ObservableProperty]
+    private string _welcomeMessage = "";
+
+    [ObservableProperty]
+    private NumberOption? _selectedSpeed;
+
+    [ObservableProperty]
+    private NumberOption? _selectedSubJobRatio;
+
+    [ObservableProperty]
+    private bool _lowMemory;
+
+    [ObservableProperty]
+    private bool _holdServerUpdates;
+
+    [ObservableProperty]
+    private bool _holdClientUpdates;
+
+    [ObservableProperty]
+    private string _heldBackSummary = "";
+
+    public int MaxServerNameLength => ServerSettingsFiles.MaxServerNameLength;
+
+    public IReadOnlyList<NumberOption> Speeds { get; } =
+        ServerTuning.SpeedPercents.Select(p => new NumberOption(p, p == 100 ? "Normal (100%)" : $"{p}%")).ToList();
+
+    public IReadOnlyList<NumberOption> SubJobRatios { get; } =
+    [
+        new(1, "Half the main job's level (normal: 75 / 37)"),
+        new(2, "Two thirds (75 / 50, 99 / 66)"),
+        new(3, "The same as the main job (75 / 75, 99 / 99)"),
+    ];
+
+    [ObservableProperty]
     private bool _allowOlderClients;
 
     [ObservableProperty]
@@ -193,6 +231,17 @@ public sealed partial class SettingsViewModel(MainViewModel main) : PageViewMode
         WindowsKey = config.Window.WindowsKey;
         Era = config.Server.Era;
         LazyZones = config.Server.LazyZones;
+        ServerName = config.Server.ServerName ?? "";
+        WelcomeMessage = config.Server.WelcomeMessage ?? "";
+        SelectedSpeed = Speeds.FirstOrDefault(o => o.Value == config.Server.SpeedPercent) ?? Speeds[0];
+        SelectedSubJobRatio = SubJobRatios.FirstOrDefault(o => o.Value == config.Server.SubJobRatio) ?? SubJobRatios[0];
+        LowMemory = config.Server.LowMemory;
+        HoldServerUpdates = config.Updates.HoldServer;
+        HoldClientUpdates = config.Updates.HoldClient;
+        var held = Launcher.HeldBack();
+        HeldBackSummary = held.Count == 0
+            ? ""
+            : $"Kept back: {string.Join(", ", held.Select(c => c.Name))}. This LocalXI ships newer versions; untick to update on the next Play.";
         AllowOlderClients = config.Server.AllowOlderClients;
         StopWhenGameCloses = config.Server.StopWhenGameCloses;
         BackupOnGameExit = config.Backups.OnGameExit;
@@ -295,6 +344,13 @@ public sealed partial class SettingsViewModel(MainViewModel main) : PageViewMode
         var eraChanged = Era != config.Server.Era;
         config.Server.Era = Era;
         config.Server.LazyZones = LazyZones;
+        config.Server.ServerName = ServerSettingsFiles.CleanServerName(ServerName);
+        config.Server.WelcomeMessage = string.IsNullOrWhiteSpace(WelcomeMessage) ? null : WelcomeMessage.Trim();
+        config.Server.SpeedPercent = SelectedSpeed?.Value ?? 100;
+        config.Server.SubJobRatio = SelectedSubJobRatio?.Value ?? 1;
+        config.Server.LowMemory = LowMemory;
+        config.Updates.HoldServer = HoldServerUpdates;
+        config.Updates.HoldClient = HoldClientUpdates;
         config.Server.AllowOlderClients = AllowOlderClients;
         config.Server.StopWhenGameCloses = StopWhenGameCloses;
         config.Gamepad = CurrentGamepad(includeButtons: true);

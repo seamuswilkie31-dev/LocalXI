@@ -33,9 +33,10 @@ public static class SeasonalEvents
     /// <summary>
     /// The server module that forces Starlight Celebration and the Egg Hunt on or off. Events left on their usual
     /// dates get no override. Each registered event keeps its own copy of its date check, so the module also swaps that
-    /// copy before LandSandBoat checks the events (at start-up and every JST midnight).
+    /// copy before LandSandBoat checks the events (at start-up and every JST midnight). Null when every event follows
+    /// its usual dates: a module with no overrides makes LandSandBoat log an error, so there's no file then.
     /// </summary>
-    public static string Module(SeasonalEventSettings events)
+    public static string? Module(SeasonalEventSettings events)
     {
         var forced = new List<(string Id, string Check, bool On)>();
         if (events.StarlightCelebration != EventMode.UsualDates)
@@ -46,6 +47,11 @@ public static class SeasonalEvents
         if (events.EggHunt != EventMode.UsualDates)
         {
             forced.Add(("egg_hunt", "xi.events.eggHunt.enabledCheck", events.EggHunt == EventMode.AlwaysOn));
+        }
+
+        if (forced.Count == 0)
+        {
+            return null;
         }
 
         var lines = new List<string>
@@ -60,12 +66,6 @@ public static class SeasonalEvents
             "local m = Module:new('localxi_seasonal_events')",
             "",
         };
-
-        if (forced.Count == 0)
-        {
-            lines.Add("-- Every event follows its usual dates.");
-            return string.Join("\n", lines) + "\n";
-        }
 
         lines.Add("local forced =");
         lines.Add("{");
@@ -98,7 +98,14 @@ public static class SeasonalEvents
     public static void WriteModule(string serverDir, SeasonalEventSettings events)
     {
         var folder = Path.Combine(serverDir, "modules", LocalXiModule.Folder);
+        var file = Path.Combine(folder, ModuleFile);
+        if (Module(events) is not { } module)
+        {
+            File.Delete(file);
+            return;
+        }
+
         Directory.CreateDirectory(folder);
-        File.WriteAllText(Path.Combine(folder, ModuleFile), Module(events));
+        File.WriteAllText(file, module);
     }
 }

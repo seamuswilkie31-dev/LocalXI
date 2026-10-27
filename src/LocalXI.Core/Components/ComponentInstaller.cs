@@ -40,6 +40,24 @@ public sealed class ComponentInstaller(AppPaths paths, HttpClient http, string r
         return File.Exists(probe) || Directory.Exists(probe);
     }
 
+    /// <summary>Installed at any version (what holding back an update needs): its files and LocalXI's marker are there.</summary>
+    public bool IsPresent(ComponentSpec spec)
+    {
+        if (spec.Kind == ComponentKind.Installer)
+        {
+            return IsInstalled(spec);
+        }
+
+        var target = TargetPath(spec);
+        if (spec.Kind == ComponentKind.File)
+        {
+            return File.Exists(Path.Combine(target, spec.FileName!));
+        }
+
+        var probe = spec.Probe is null ? target : Path.Combine(target, spec.Probe);
+        return ReadMarker(spec) is not null && (File.Exists(probe) || Directory.Exists(probe));
+    }
+
     public async Task InstallAsync(ComponentSpec spec, IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
     {
         if (!spec.IsPublished)

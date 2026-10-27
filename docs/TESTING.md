@@ -2,8 +2,11 @@
 
 ## Verified (October 2026, Windows 10 22H2)
 
-- **Unit tests** (`dotnet test`, 128 tests): controller button layouts, the seasonal events module, craft ranks,
-  the addon start-up script, download layouts and XIPivot's settings, plus INI editing, password rules, client-version parsing, the
+- **Unit tests** (`dotnet test`, 149 tests): controller button layouts, the seasonal events module, craft ranks,
+  the addon start-up script and its DrawDistance commands, download layouts (including source code left out),
+  reading a DLL's exports and refusing plugins without Ashita 4.3's, XIPivot's settings, the server name, welcome
+  message and weapon skill damage in `settings/main.lua`, movement speed and sub job settings, and the mount key
+  items, plus INI editing, password rules, client-version parsing, the
   component manifest, download hash checking, zip install/upgrade with preserved folders, era presets and
   data-pack ordering, the module list, the player-table list, server package detection, login-protocol replies,
   network adapter classification, Windows argument quoting, the character data layouts and server-script
@@ -21,6 +24,18 @@
   every bundled one found, LocalXI's start-up script and `pivot.ini` written, and the boot config's script, XIPivot
   and controller lines set. The new Addons page, Settings → Controller and Seasonal events, and the Crafting tab
   were checked on screen.
+- **The Nameplate fix**: the abandoned Nameplate build (interface 4.16) lacks `expDestroyPlugin`, which is why
+  Ashita 4.3 says "Plugin is missing required exports"; the 4.30 port exports exactly what Ashita's own 4.3 plugins
+  do. In a throwaway world holding the old download, LocalXI recognised it as unusable and replaced it with the port.
+  Every addon added in this update (AMANTracker, CrystalBuff, EasyTH, FancyChat, FancyCompass, FancyTrusts, FindAll,
+  Shorthand, tHotBar, XivParty) downloaded and landed where Ashita loads it, along with every bundled one, and the
+  start-up script ends with the DrawDistance commands after Ashita's `/wait`.
+- **World settings in the real server** (throwaway world): the speed and sub job variables were applied by every
+  server program, `settings/main.lua` held the server name, welcome message and weapon skill damage, the server ran
+  without errors, and the file was removed again on going back to defaults.
+- **Low memory mode** (classic world): the map server used 120 MB at start-up instead of 2.9 GB.
+- **All mounts** against the real database: 39 mount key items and the chocobo license given, other key items
+  untouched; unticking removed the mounts and kept the license.
 - **Per-character Dual Wield in the real server engine**, with LandSandBoat's own test runner (`xi_test.exe`)
   and LocalXI's module and trait rows: a level-30 warrior has no Dual Wield without the setting and Dual Wield I
   with it, loses it when the setting is cleared, and a ninja keeps its own Dual Wield II either way.
@@ -95,7 +110,10 @@ These need the game client:
 - [ ] **Turn on DirectPlay** on a PC where it's off (Windows permission prompt, then DISM)
 - [ ] Registry repair on a copied install (install folders and COM classes), then the game starts
 - [ ] Visual C++ runtime install on a clean Windows install
-- [ ] Each addon on the Addons page loading and working in game, and a real texture pack through XIPivot
+- [ ] Each addon on the Addons page loading and working in game (including the Nameplate port), and a real texture
+  pack through XIPivot
+- [ ] In game: the server name and welcome message, movement speed, sub job levels, weapon skill damage, riding
+  mounts in a classic world, and Low memory mode with players moving between zones
 - [ ] Controllers in game: Xbox, DualShock 4 and DualSense (direct and through Steam Input), Switch and Switch 2 Pro
   through Steam Input (the button numbers come from Ashita's documentation, not from testing each controller)
 - [ ] Seasonal event decorations and NPCs in game

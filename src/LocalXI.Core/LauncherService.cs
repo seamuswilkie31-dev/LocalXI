@@ -36,6 +36,10 @@ public sealed class LauncherService : IAsyncDisposable
         MariaDb = new MariaDbServer(paths, Logs);
         Game = new GameLauncher(paths);
         Addons = new AddonManager(paths, Http);
+        if (AddonManager.Upgrade(Config.Addons) && File.Exists(paths.ConfigFile))
+        {
+            SaveConfig();
+        }
     }
 
     public static string AppVersion => typeof(LauncherService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
@@ -94,7 +98,23 @@ public sealed class LauncherService : IAsyncDisposable
             .Where(c => c.Id is not ("server" or "meshes") || string.IsNullOrWhiteSpace(Config.Server.OverrideDirectory))
             .ToList();
 
-    public IReadOnlyList<ComponentSpec> MissingComponents() => RequiredComponents().Where(c => !Installer.IsInstalled(c)).ToList();
+    /// <summary>
+    /// Components to download: not installed, or installed at another version than this LocalXI pins. Components the
+    /// player holds (Settings > Updates) only count when they aren't installed at all.
+    /// </summary>
+    public IReadOnlyList<ComponentSpec> MissingComponents() =>
+        RequiredComponents().Where(c => !Installer.IsInstalled(c) && !(IsHeld(c) && Installer.IsPresent(c))).ToList();
+
+    private bool IsHeld(ComponentSpec component) => component.Id switch
+    {
+        "server" or "meshes" => Config.Updates.HoldServer,
+        "ashita" or "xiloader" => Config.Updates.HoldClient,
+        _ => false,
+    };
+
+    /// <summary>Components held at an older version than this LocalXI pins, for the Settings page to mention.</summary>
+    public IReadOnlyList<ComponentSpec> HeldBack() =>
+        RequiredComponents().Where(c => IsHeld(c) && Installer.IsPresent(c) && !Installer.IsInstalled(c)).ToList();
 
     public async Task InstallComponentsAsync(IProgress<InstallProgress>? progress, CancellationToken cancellationToken)
     {
@@ -332,19 +352,20 @@ public sealed class LauncherService : IAsyncDisposable
             SeasonalEvents.WriteModule(ServerDirectory, Config.Server.Events);
             await LocalXiModule.AddDualWieldTraitsAsync(Database, cancellationToken);
             EraPresets.WriteModuleList(ServerDirectory);
-            if (!ServerSettingsFiles.ApplyExpRate(ServerDirectory, Config.Server.ExpRate))
+            foreach (var problem in ServerSettingsFiles.Apply(ServerDirectory, Config.Server))
             {
-                Logs.Add("launcher", "The EXP rate couldn't be applied: settings/map.lua was edited by hand, or the server has no EXP_RATE setting.");
+                Logs.Add("launcher", problem);
             }
         }
 
         var era = new Dictionary<string, string>(EraPresets.Settings(Config.Server.Era));
-        foreach (var (key, value) in SeasonalEvents.Settings(Config.Server.Events))
+        foreach (var (key, value) in SeasonalEvents.Settings(Config.Server.Events).Concat(ServerTuning.Settings(Config.Server)))
         {
             era[key] = value;
         }
 
-        var lazy = Config.Server.LazyZones && EraPresets.AllowsLazyZones(Config.Server.Era);
+        // Low memory mode loads zones on demand even in classic, giving up the classic rules kept in zone scripts.
+        var lazy = (Config.Server.LazyZones && EraPresets.AllowsLazyZones(Config.Server.Era)) || Config.Server.LowMemory;
         var options = Config.Mode == PlayMode.Host
             ? new ServerStartOptions(CheckHostAddress(), LocalOnly: false, lazy, Config.Server.AllowOlderClients, era)
             : new ServerStartOptions("127.0.0.1", LocalOnly: true, lazy, Config.Server.AllowOlderClients, era);

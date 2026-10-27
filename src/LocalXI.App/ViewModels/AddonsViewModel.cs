@@ -18,9 +18,15 @@ public sealed partial class AddonRow(AddonInfo info) : ObservableObject
     [ObservableProperty]
     private bool _enabled;
 
+    /// <summary>Keep the downloaded version: Check for updates leaves it alone.</summary>
+    [ObservableProperty]
+    private bool _held;
+
     [ObservableProperty]
     private string _source = "";
 }
+
+public sealed record DrawDistanceOption(int Value, string Label);
 
 public sealed partial class TexturePackRow(string name, bool looksValid) : ObservableObject
 {
@@ -41,6 +47,12 @@ public sealed partial class AddonsViewModel(MainViewModel main) : PageViewModel(
     public ObservableCollection<TexturePackRow> TexturePacks { get; } = [];
 
     public string TexturePacksFolder => Launcher.Addons.TexturePacksDir;
+
+    public IReadOnlyList<DrawDistanceOption> DrawDistances { get; } =
+        [new(0, "The game's own"), .. AddonManager.DrawDistances.Select(d => new DrawDistanceOption(d, d.ToString()))];
+
+    /// <summary>Addons people ask for that Ashita v4 can't run, with what to use instead.</summary>
+    public string Unavailable { get; } = string.Join("\n", AddonManager.Unavailable.Select(u => $"{u.Name}: {u.Instead}"));
     public bool AshitaOff => !Launcher.Config.UseAshita;
 
     [ObservableProperty]
@@ -55,6 +67,9 @@ public sealed partial class AddonsViewModel(MainViewModel main) : PageViewModel(
     [ObservableProperty]
     private string _packSummary = "";
 
+    [ObservableProperty]
+    private DrawDistanceOption? _selectedDrawDistance;
+
     public override void OnShown()
     {
         OnPropertyChanged(nameof(AshitaOff));
@@ -62,8 +77,10 @@ public sealed partial class AddonsViewModel(MainViewModel main) : PageViewModel(
         Addons.Clear();
         foreach (var info in AddonManager.Catalog)
         {
-            Addons.Add(new AddonRow(info) { Enabled = settings.Enabled.Contains(info.Id), Source = SourceText(info) });
+            Addons.Add(new AddonRow(info) { Enabled = settings.Enabled.Contains(info.Id), Held = settings.Held.Contains(info.Id), Source = SourceText(info) });
         }
+
+        SelectedDrawDistance = DrawDistances.FirstOrDefault(d => d.Value == settings.DrawDistance) ?? DrawDistances[0];
 
         PivotEnabled = settings.PivotEnabled;
         PivotSource = SourceText(AddonManager.Pivot);
@@ -75,6 +92,11 @@ public sealed partial class AddonsViewModel(MainViewModel main) : PageViewModel(
         if (info.Origin == AddonOrigin.Bundled)
         {
             return Launcher.Addons.IsAvailable(info) ? "Comes with Ashita" : "Comes with Ashita (not found: run setup again)";
+        }
+
+        if (Launcher.Addons.IsOutdatedPlugin(info))
+        {
+            return $"From {info.Source}  ·  the copy on this PC is built for an older Ashita, so it downloads again when you save";
         }
 
         return Launcher.Addons.InstalledVersion(info) is { } version
@@ -145,6 +167,8 @@ public sealed partial class AddonsViewModel(MainViewModel main) : PageViewModel(
     {
         var settings = Launcher.Config.Addons;
         settings.Enabled = Addons.Where(a => a.Enabled).Select(a => a.Info.Id).ToList();
+        settings.Held = Addons.Where(a => a.Held && a.IsDownload).Select(a => a.Info.Id).ToList();
+        settings.DrawDistance = SelectedDrawDistance?.Value ?? 0;
         settings.PivotEnabled = PivotEnabled;
         settings.TexturePacks = TexturePacks.Select(p => new TexturePack(p.Name, p.Enabled)).ToList();
         Launcher.SaveConfig();
@@ -173,16 +197,17 @@ public sealed partial class AddonsViewModel(MainViewModel main) : PageViewModel(
         OnShown();
     }
 
-    /// <summary>Asks each downloaded addon's GitHub page for a newer version and downloads it.</summary>
+    /// <summary>Asks each downloaded addon's GitHub page for a newer version and downloads it, except those kept.</summary>
     [RelayCommand]
     private async Task CheckForUpdatesAsync()
     {
+        var held = Addons.Where(a => a.Held).Select(a => a.Info.Id).ToHashSet();
         var downloaded = AddonManager.Catalog.Append(AddonManager.Pivot)
-            .Where(a => a.Origin != AddonOrigin.Bundled && Launcher.Addons.InstalledVersion(a) is not null)
+            .Where(a => a.Origin != AddonOrigin.Bundled && Launcher.Addons.InstalledVersion(a) is not null && !held.Contains(a.Id))
             .ToList();
         if (downloaded.Count == 0)
         {
-            Main.Status = "Nothing downloaded yet to update.";
+            Main.Status = held.Count > 0 ? "Nothing to check: every downloaded addon is kept at its version." : "Nothing downloaded yet to update.";
             return;
         }
 
