@@ -211,10 +211,51 @@ public class GameDiagnosticsTests
 
         var summary = GameDiagnostics.SummarizeAshitaLog(log, tail: 2);
 
+        // The shutdown (AshitaCore::Release onwards) is left out of the tail.
         Assert.Equal(
         [
             "10/19/2026 16:22:23.300 | ERROR    |    newIDirect3D8::CreateDevice | Failed to create the device.",
-            "10/19/2026 16:22:23.400 | DEBUG    |    AshitaCore::Release | Releasing.",
+            "10/19/2026 16:22:23.200 | DEBUG    |    newIDirect3D8::CreateDevice | Creating a new graphics device..",
         ], summary);
+    }
+
+    // Lines as Ashita 4.3 writes them on a healthy launch (from a real log), and its shutdown.
+    private static readonly string[] HealthyStart =
+    [
+        "10/19/2026 22:01:03.477 | DEBUG    |                                      InstallAshita | Installing Ashita into the current process.",
+        "10/19/2026 22:01:05.464 | DEBUG    |        Ashita::Hooks::Window::Mine_CreateWindowExA | CreateWindowExA - Creating Final Fantasy XI window. [dwExStyle: 768]",
+        "10/19/2026 22:01:05.484 | DEBUG    |       Ashita::Hooks::DirectX::Mine_Direct3DCreate8 | Direct3DCreate8 - Creating new Direct3D instance. [SDKVersion: 220]",
+        "10/19/2026 22:01:05.722 | DEBUG    |                        newIDirect3D8::CreateDevice | Creating a new graphics device..",
+        "10/19/2026 22:01:05.836 | DEBUG    |           newIDirect3DDevice8::newIDirect3DDevice8 | .ctor",
+        "10/19/2026 22:01:06.726 | DEBUG    |                    newIDirectInput8A::CreateDevice | Creating input device: {6F1D2B61,D5A0,11CF,BF,C7,44,45,53,54,00,00}",
+    ];
+
+    private static readonly string[] Shutdown =
+    [
+        "10/19/2026 22:31:44.390 | DEBUG    |          newIDirect3DDevice8::~newIDirect3DDevice8 | .dtor",
+        "10/19/2026 22:31:44.420 | DEBUG    |                          ResourceManager::Release | <Begin>",
+        "10/19/2026 22:31:47.522 | DEBUG    |                                    UninstallAshita | Uninstalling Ashita from the current process. (16708)",
+        "10/19/2026 22:31:47.523 | DEBUG    |                   Ashita::Hooks::Window::Uninstall | <End>",
+    ];
+
+    [Fact]
+    public void StartupSteps_AllReachedOnAHealthyLaunch() =>
+        Assert.Equal(GameDiagnostics.StartupSteps.Count, GameDiagnostics.StartupStepsReached([.. HealthyStart, .. Shutdown]));
+
+    [Fact]
+    public void StartupSteps_StopWhereTheGameStopped()
+    {
+        Assert.Equal(0, GameDiagnostics.StartupStepsReached([HealthyStart[0], .. Shutdown]));       // quit before its window
+        Assert.Equal(1, GameDiagnostics.StartupStepsReached([.. HealthyStart[..2], .. Shutdown]));  // window, no Direct3D
+        Assert.Equal(3, GameDiagnostics.StartupStepsReached([.. HealthyStart[..4], .. Shutdown]));  // device asked for, never made
+        Assert.Contains("before it even created its window", GameDiagnostics.DescribeStartupStop(0));
+        Assert.Contains("Direct3D 8", GameDiagnostics.DescribeStartupStop(1));
+    }
+
+    [Fact]
+    public void Summary_ShowsTheLastLinesBeforeTheShutdown()
+    {
+        var summary = GameDiagnostics.SummarizeAshitaLog([.. HealthyStart[..2], .. Shutdown], tail: 2);
+        Assert.Equal([HealthyStart[0], HealthyStart[1]], summary);
     }
 }

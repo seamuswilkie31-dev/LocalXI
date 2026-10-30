@@ -489,10 +489,23 @@ public sealed class LauncherService : IAsyncDisposable
             findings.Add($"Windows recorded the game crashing in {crash.Module} (exception {crash.ExceptionCode}).");
         }
 
+        if (OperatingSystemInfo.IsWine)
+        {
+            Logs.Add("launcher", $"Running under {OperatingSystemInfo.Describe}.");
+        }
+
         if (Config.UseAshita && GameDiagnostics.AshitaLogSince(Paths.AshitaDir, since) is { } ashitaLog)
         {
-            Logs.Add("launcher", $"Ashita's log for this launch ({ashitaLog}), warnings and last lines:");
-            foreach (var line in GameDiagnostics.SummarizeAshitaLog(File.ReadAllLines(ashitaLog)))
+            var lines = File.ReadAllLines(ashitaLog);
+            var reached = GameDiagnostics.StartupStepsReached(lines);
+            var steps = GameDiagnostics.StartupSteps;
+            Logs.Add("launcher", reached == steps.Count
+                ? "The game got through every start-up step Ashita records."
+                : $"The game's start-up stopped after {(reached == 0 ? "nothing" : steps[reached - 1].Name)}; it never reached \"{steps[reached].Name}\".");
+            findings.Add(GameDiagnostics.DescribeStartupStop(reached));
+
+            Logs.Add("launcher", $"Ashita's log for this launch ({ashitaLog}), warnings and the last lines before it shut down:");
+            foreach (var line in GameDiagnostics.SummarizeAshitaLog(lines))
             {
                 Logs.Add("ashita", line);
             }

@@ -35,14 +35,66 @@ public static class GameDiagnostics
             : null;
     }
 
-    /// <summary>Ashita's warnings and errors, then the last lines it wrote before the game went away.</summary>
+    /// <summary>
+    /// Ashita's warnings and errors, then the last lines it wrote before shutting down: the shutdown itself (every
+    /// manager released, hooks uninstalled) is the same on every exit and would push the telling lines out.
+    /// </summary>
     public static IReadOnlyList<string> SummarizeAshitaLog(IReadOnlyList<string> lines, int tail = 15)
     {
         var problems = lines
             .Where(l => l.Contains("| WARN", StringComparison.Ordinal) || l.Contains("| ERROR", StringComparison.Ordinal) || l.Contains("| CRITICAL", StringComparison.Ordinal))
             .Where(l => !Routine.Any(r => l.Contains(r, StringComparison.Ordinal)));
-        return problems.Concat(lines.TakeLast(tail)).Distinct().ToList();
+        var shutdown = lines.ToList().FindIndex(IsShutdownLine);
+        var beforeShutdown = shutdown < 0 ? lines : lines.Take(shutdown).ToList();
+        return problems.Concat(beforeShutdown.TakeLast(tail)).Distinct().ToList();
     }
+
+    // Ashita's shutdown starts with the game's devices being destroyed, then every manager released.
+    private static bool IsShutdownLine(string line) =>
+        line.Contains("::~", StringComparison.Ordinal) || line.Contains("::Release |", StringComparison.Ordinal) ||
+        line.Contains("UninstallAshita |", StringComparison.Ordinal);
+
+    /// <summary>A step every healthy game start goes through, and the Ashita log line that shows it happened.</summary>
+    public sealed record StartupStep(string Name, string LogMarker);
+
+    /// <summary>The game's start-up steps in order, as Ashita logs them (checked against a healthy launch).</summary>
+    public static readonly IReadOnlyList<StartupStep> StartupSteps =
+    [
+        new("game window created", "Creating Final Fantasy XI window"),
+        new("Direct3D 8 loaded", "Direct3DCreate8 - Creating new Direct3D instance"),
+        new("graphics device requested", "Creating a new graphics device"),
+        new("graphics device created", "newIDirect3DDevice8::newIDirect3DDevice8 | .ctor"),
+        new("keyboard and controllers opened", "newIDirectInput8A::CreateDevice"),
+    ];
+
+    /// <summary>How many of <see cref="StartupSteps"/> the launch got through, in order.</summary>
+    public static int StartupStepsReached(IReadOnlyList<string> lines)
+    {
+        var reached = 0;
+        foreach (var step in StartupSteps)
+        {
+            if (!lines.Any(l => l.Contains(step.LogMarker, StringComparison.Ordinal)))
+            {
+                break;
+            }
+
+            reached++;
+        }
+
+        return reached;
+    }
+
+    /// <summary>What the step the game stopped at says about the cause, for the early-exit message.</summary>
+    public static string DescribeStartupStop(int stepsReached) => stepsReached switch
+    {
+        0 => "The game quit before it even created its window, so FINAL FANTASY XI itself couldn't start: usually its " +
+             "settings, a missing system part (DirectPlay, the Visual C++ runtime) or, on Linux, the Wine/Proton setup.",
+        1 => "The game created its window but couldn't load Direct3D 8 (d3d8), which draws it. On Linux this is the " +
+             "Wine/Proton graphics setup (DXVK or wined3d); on Windows, the graphics driver.",
+        2 or 3 => "The game loaded Direct3D 8 but couldn't create a graphics device. Try Settings > Display > Windowed " +
+                  "and a smaller resolution, and update the graphics driver (on Linux, try another Proton or DXVK version).",
+        _ => "The game got through its graphics start-up and closed afterwards.",
+    };
 
     /// <summary>Game crashes Windows recorded since <paramref name="since"/>, newest first. Empty if the log can't be read.</summary>
     public static IReadOnlyList<GameCrash> CrashesSince(DateTime since)

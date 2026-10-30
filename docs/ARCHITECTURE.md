@@ -241,6 +241,16 @@ can hold the server (`server`, `meshes`) or Ashita and xiloader: a held componen
 counts as present (`ComponentInstaller.IsPresent`), so it isn't replaced, and as the server's version doesn't
 change, neither the game data nor the player data conversion runs again.
 
+## When the game closes straight away
+
+If the game is gone within a minute, `DescribeEarlyExit` gathers what it can: the DirectPlay state, crashes Windows
+recorded, the Wine version under Linux, and Ashita's log for the launch. A healthy start logs five steps in order
+(`GameDiagnostics.StartupSteps`): the game window, `Direct3DCreate8`, the graphics device being requested, the
+device being created, and the input devices. How many were reached says where the game stopped (before its window
+points at the game's own setup, between window and device at Direct3D 8), and the message says so. The log lines
+copied to the Logs page are the warnings and errors plus the last lines before Ashita's shutdown, which is the same
+on every exit.
+
 ## Running under Wine
 
 `OperatingSystemInfo.IsWine` looks for Wine's `wine_get_version` export in `ntdll.dll`. Under Wine (Linux,
